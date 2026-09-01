@@ -6,7 +6,8 @@ Angelini & Ricci-Tersenghi critique (NMI 5, 29 (2023)) by same-machine measureme
 **Env:** `pyrt/`, `runlog/` (a repo hook blocks `.venv`, `venv`, `logs/` paths).
 
 ## STATUS: experiment COMPLETE, adversarially reviewed (D26-D29), motion pass done (D30),
-## PUBLISHED at https://gnnvsgreedy.vercel.app (Vercel project gnnvsgreedy, CLI-deployed).
+## PUBLISHED: site https://gnnvsgreedy.vercel.app + public repo
+## https://github.com/ryanonline1234/gnn-vs-greedy (MIT; refs/ data/ outreach/ runlog/ excluded).
 ## Deploy flow: code/build_report.py -> code/make_site.py (adds doctype/head wrapper;
 ## the raw fragment renders in quirks mode) -> cd site && vercel deploy --prod --yes
 
@@ -46,6 +47,14 @@ proof + reproduction, D26), mechanism audit (exactness claim refuted and correct
 direct p-measurement, D27), fact-check (all 44 head-to-head cells exact; quote attribution,
 ms/epoch seed-means, and cosmetics fixed, D28).
 
+## Open items (D36/D37, highest value first)
+1. The GraphSAGE non-reproduction (measured AR 0.8777 vs the Reply's ~0.947 at d=3) is
+   unresolved and is the weakest point in the study. Needs their implementation.
+2. The d=10 disagreement with Krutsky et al. (ECAI 2025) is unresolved — likely a
+   configuration difference; email draft prepared in outreach/ (local only).
+3. Prior art (D32) must be cited in any write-up or it will be rejected on novelty.
+4. arXiv endorsement needed before preprinting; candidates + drafts in outreach/.
+
 ## Next action
-None open. Redeploys: rebuild report + make_site, then vercel deploy --prod --yes from site/. When cleared to publish, `report.html` is ready for the Artifact tool
+None blocking. Redeploys: rebuild report + make_site, then vercel deploy --prod --yes from site/. When cleared to publish, `report.html` is ready for the Artifact tool
 (title "The PI-GNN Verdict", favicon a single scales emoji).

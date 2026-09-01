@@ -330,11 +330,21 @@ well before the problem becomes hard.</figcaption></figure>
 
 <section>
 <div class="col">
-  <div class="sechead"><span class="secnum">DEFENCE</span><h2>&ldquo;But it wasn't tuned&rdquo;</h2></div>
-  <p>That is the Replies' central argument, so the tuning budget was fixed in writing
-  <em>before</em> any sweep ran: four learning rates &times; two penalty values, three seeds,
-  at every degree. Then a second, clearly-labelled post-hoc round went further &mdash; bigger
-  embedding, longer patience, and the repaired objective.</p>
+  <div class="sechead"><span class="secnum">DEFENCE</span><h2>Testing the defence the authors actually published</h2></div>
+  <p>A tuning budget was fixed in writing <em>before</em> any sweep ran &mdash; four learning
+  rates &times; two penalty values, three seeds, at every degree &mdash; followed by a
+  separately-labelled post-hoc round with a bigger embedding, longer patience and the
+  repaired objective.</p>
+  <p><strong>That budget was aimed at the wrong target, and this page previously said
+  otherwise.</strong> It was designed against the assumption that the Replies argue the
+  network was under-tuned. Reading the Reply to Angelini
+  (<span class="mut">arXiv:2302.03602</span>) shows the defence is two specific changes:
+  <em>&ldquo;by simply setting P = 10 we find even further consistent improvements.
+  Specifically, for d = 3 at P = 10 GraphSAGE achieves approximation ratios of AR ~ 0.947,
+  on par with the DGA-based results&hellip;&rdquo;</em> &mdash; a different architecture and a
+  penalty five times larger than the top of the pre-registered grid, which stopped at
+  P = 3 and never implemented GraphSAGE. The claim that the objection had been
+  &ldquo;answered on its own terms&rdquo; is withdrawn.</p>
 </div>
 <div class="scroll"><table class="data">
 <thead><tr><th>d</th><th class="num">DGA</th><th class="num">PI-GNN published</th>
@@ -342,10 +352,32 @@ well before the problem becomes hard.</figcaption></figure>
 <th class="num">null control</th><th class="num">non-empty runs</th></tr></thead>
 <tbody><tr><td class="nc">3</td><td class="num win">0.9500</td><td class="num">0.9184</td><td class="num">0.9231<span class="sub">lr 0.0001, penalty 3</span></td><td class="num">0.9296<span class="sub">modified_linear</span></td><td class="num sig">0.8709</td><td class="num">24/24<span class="sub">post-hoc 21/21</span></td></tr><tr><td class="nc">5</td><td class="num win">0.9182</td><td class="num">0.8844</td><td class="num">0.8870<span class="sub">lr 0.0001, penalty 3</span></td><td class="num">0.8931<span class="sub">modified_linear_lr1e-3</span></td><td class="num sig">0.8532</td><td class="num">24/24<span class="sub">post-hoc 21/21</span></td></tr><tr><td class="nc">20</td><td class="num win">0.17000</td><td class="num">0.13540</td><td class="num">0.13500<span class="sub">lr 0.0001, penalty 2</span></td><td class="num">0.13500<span class="sub">posthoc_lr1e-3</span></td><td class="num sig">0.15720</td><td class="num">0/24<span class="sub">post-hoc 0/21</span></td></tr></tbody></table></div>
 <div class="col">
-  <p>The pre-registered grid buys under half a percent, and even the post-hoc repaired objective buys about one point &mdash; neither approaches the greedy. (The d = 20 column reports densities, as no published bound is adopted there.) At d = 20 every one
-  of the 24 pre-registered runs and every one of the 21 post-hoc runs returned
-  the empty set &mdash; 0 non-empty results out of 45.
-  The objection is answered on its own terms.</p>
+  <p>The pre-registered grid buys under half a percentage point, and the post-hoc repaired
+  objective about one &mdash; neither approaches the greedy. (The d = 20 column reports
+  densities, as no published bound is adopted there.) At d = 20 every one of the
+  24 pre-registered runs and every one of the 21 post-hoc runs returned the
+  empty set: 0 non-empty results out of 45.</p>
+  <h3>The Reply&rsquo;s own configuration, run as described</h3>
+  <p>GraphSAGE with a mean aggregator was implemented and crossed with the penalty, giving
+  the four arms below at n = 1000, three seeds each.</p>
+</div>
+<div class="scroll"><table class="data">
+<thead><tr><th>configuration</th><th class="num">AR / density</th>
+<th class="num">non-empty</th><th class="num">mean raw output</th></tr></thead>
+<tbody><tr class="grp"><th colspan="4">d = 3 &nbsp;<span class=mut>approximation ratio</span></th></tr><tr class="gnn"><td>GCN, P = 2 &nbsp;<span class=mut>(as published)</span></td><td class="num">0.9223</td><td class="num">3/3</td><td class="num mut">419</td></tr><tr class="gnn"><td>GCN, P = 10</td><td class="num">0.9289</td><td class="num">3/3</td><td class="num mut">418</td></tr><tr class="gnn"><td>GraphSAGE, P = 2</td><td class="num">0.8513</td><td class="num">3/3</td><td class="num mut">388</td></tr><tr class="gnn"><td>GraphSAGE, P = 10 &nbsp;<span class=mut>(the Reply&rsquo;s configuration)</span></td><td class="num">0.8777</td><td class="num">3/3</td><td class="num mut">400</td></tr><tr class="win"><td>DGA (greedy)</td><td class="num">0.9500</td><td class="num">&mdash;</td><td class="num mut">&mdash;</td></tr><tr class="grp"><th colspan="4">d = 5 &nbsp;<span class=mut>approximation ratio</span></th></tr><tr class="gnn"><td>GCN, P = 2 &nbsp;<span class=mut>(as published)</span></td><td class="num">0.8818</td><td class="num">3/3</td><td class="num mut">333</td></tr><tr class="gnn"><td>GCN, P = 10</td><td class="num">0.8073</td><td class="num">1/3</td><td class="num mut">104</td></tr><tr class="gnn"><td>GraphSAGE, P = 2</td><td class="num">0.8151</td><td class="num">3/3</td><td class="num mut">313</td></tr><tr class="gnn"><td>GraphSAGE, P = 10 &nbsp;<span class=mut>(the Reply&rsquo;s configuration)</span></td><td class="num">0.8255</td><td class="num">3/3</td><td class="num mut">217</td></tr><tr class="win"><td>DGA (greedy)</td><td class="num">0.9182</td><td class="num">&mdash;</td><td class="num mut">&mdash;</td></tr><tr class="grp"><th colspan="4">d = 20 &nbsp;<span class=mut>density; no published bound adopted</span></th></tr><tr class="gnn"><td>GCN, P = 2 &nbsp;<span class=mut>(as published)</span></td><td class="num">0.1350</td><td class="num">0/3</td><td class="num mut">0</td></tr><tr class="gnn"><td>GCN, P = 10</td><td class="num">0.1350</td><td class="num">0/3</td><td class="num mut">0</td></tr><tr class="gnn"><td>GraphSAGE, P = 2</td><td class="num">0.1350</td><td class="num">0/3</td><td class="num mut">0</td></tr><tr class="gnn"><td>GraphSAGE, P = 10 &nbsp;<span class=mut>(the Reply&rsquo;s configuration)</span></td><td class="num">0.1350</td><td class="num">0/3</td><td class="num mut">0</td></tr><tr class="win"><td>DGA (greedy)</td><td class="num">0.1700</td><td class="num">&mdash;</td><td class="num mut">&mdash;</td></tr></tbody></table></div>
+<div class="col">
+  <div class="kicker">The defence does not reach the high-degree failure at all: every one
+  of the four configurations &mdash; including GraphSAGE with P = 10, exactly as the Reply
+  specifies &mdash; returns the empty set in every run at d = 20.</div>
+  <p>At d = 3, P = 10 moves the GCN slightly in the direction the Reply claims (0.9223 to
+  0.9289) and still falls short of greedy&rsquo;s 0.9500. At d = 5 it makes matters
+  markedly worse, which the Reply does not mention.</p>
+  <p><strong>One result here is a failure to reproduce, and is reported as nothing more.</strong>
+  The Reply states GraphSAGE at P = 10 reaches AR ~ 0.947 for d = 3. This implementation
+  reaches 0.8777 &mdash; below its own GCN. The likeliest explanation is that this
+  GraphSAGE is not equivalent to theirs: the Reply gives no architecture detail and no
+  code for it. That is a gap in what can be checked from the published record, not
+  evidence against their number.</p>
 </div>
 </section>
 
@@ -367,7 +399,7 @@ build, training and post-processing.</figcaption></figure>
 <section>
 <div class="col">
   <div class="sechead"><span class="secnum">SCALE</span><h2>Claim B: a million variables</h2></div>
-  <p>The reference implementation builds a dense <code>torch.zeros(n, n)</code> QUBO matrix. At n = 1,000,000 that is 1.0e+12 float32 entries &mdash; <strong>3.6 TiB</strong>. The published code cannot represent the size it claims to solve. The sparse reformulation used here is mathematically identical and is what makes any test at this scale possible &mdash; a deliberate improvement in the claim’s favour.</p><div class="scroll"><table class="data"><thead><tr><th>n</th><th class="num">ms / epoch</th><th class="num">&times; per decade</th><th class="num">local exponent</th><th class="num">embedding</th></tr></thead><tbody><tr><td class="nc">1,000</td><td class="num">1.10</td><td class="num">&mdash;</td><td class="num">&mdash;</td><td class="num mut">31&times;15</td></tr><tr><td class="nc">10,000</td><td class="num">7.98</td><td class="num">7.3&times;</td><td class="num">0.86</td><td class="num mut">100&times;50</td></tr><tr><td class="nc">100,000</td><td class="num">163.22</td><td class="num">20.4&times;</td><td class="num">1.31</td><td class="num mut">316&times;158</td></tr><tr><td class="nc">1,000,000</td><td class="num">47,387.71</td><td class="num">290.3&times;</td><td class="num">2.46</td><td class="num mut">1000&times;500</td></tr></tbody></table></div><div class="col"><p>The paper’s own rule &mdash; <code>dim_embedding = int(sqrt(n))</code>, <code>hidden = dim/2</code> &mdash; makes the first layer a dense <code>(n &times; dim) @ (dim &times; hidden)</code> matmul, so arithmetic grows as n&sup2;/2 <em>regardless of how sparse the graph is</em>. Measured time does not track that cleanly: slower than the arithmetic below n = 10<sup>5</sup>, and about 3&times; faster than it in the last decade, where the 14.9 GiB working set goes memory-bound.</p><div class="kicker">Measured, not projected: after <strong>1,503 s</strong> of training at n = 10<sup>6</sup> &mdash; 36 epochs, 0.27% of the schedule this model needs &mdash; PI-GNN&rsquo;s output repairs to 0.37470. The information-free null control sits at 0.39527, and DGA reached 0.43295 in 0.2671 seconds.</div><p class="mut" style="font-size:.87rem">That run was stopped by its wall-clock budget, not by convergence, so it is a lower bound on time-to-parity and nothing more. It does not show the network would never converge.</p><p><strong>Projection, and labelled as one.</strong> Epochs-to-convergence is stable across three decades (12,361 / 14,812 / 13,321), so the epoch count transfers. Taking the count measured at the nearest size (n = 100,000), a full run at the published configuration would take 13,321 &times; 47.4 s = <strong>7.31 days</strong>, against DGA&rsquo;s 0.2671 s on the same instance &mdash; a factor of roughly <strong>2.4 million&times;</strong>. The critique claimed 10<sup>4</sup>; this same-host figure is ~236&times; larger, because their 10<sup>4</sup> compared their own laptop&rsquo;s greedy against GPU timings read off Figure 5 of the paper they were criticising.</p></div>
+  <p>The reference implementation builds a dense <code>torch.zeros(n, n)</code> QUBO matrix. At n = 1,000,000 that is 1.0e+12 float32 entries &mdash; <strong>3.6 TiB</strong>. The full paper never describes the QUBO construction used at that scale &mdash; the word &ldquo;dense&rdquo; does not appear in it &mdash; so this is a property of the <em>released example implementation</em>, not of a published method description. The sparse reformulation used here is mathematically identical and is what makes any test at this scale possible &mdash; a deliberate improvement in the claim’s favour.</p><div class="scroll"><table class="data"><thead><tr><th>n</th><th class="num">ms / epoch</th><th class="num">&times; per decade</th><th class="num">local exponent</th><th class="num">embedding</th></tr></thead><tbody><tr><td class="nc">1,000</td><td class="num">1.10</td><td class="num">&mdash;</td><td class="num">&mdash;</td><td class="num mut">31&times;15</td></tr><tr><td class="nc">10,000</td><td class="num">7.98</td><td class="num">7.3&times;</td><td class="num">0.86</td><td class="num mut">100&times;50</td></tr><tr><td class="nc">100,000</td><td class="num">163.22</td><td class="num">20.4&times;</td><td class="num">1.31</td><td class="num mut">316&times;158</td></tr><tr><td class="nc">1,000,000</td><td class="num">47,387.71</td><td class="num">290.3&times;</td><td class="num">2.46</td><td class="num mut">1000&times;500</td></tr></tbody></table></div><div class="col"><p>The paper’s own rule &mdash; <code>dim_embedding = int(sqrt(n))</code>, <code>hidden = dim/2</code> &mdash; makes the first layer a dense <code>(n &times; dim) @ (dim &times; hidden)</code> matmul, so arithmetic grows as n&sup2;/2 <em>regardless of how sparse the graph is</em>. Measured time does not track that cleanly: slower than the arithmetic below n = 10<sup>5</sup>, and about 3&times; faster than it in the last decade, where the 14.9 GiB working set goes memory-bound.</p><div class="kicker">Measured, not projected: after <strong>1,503 s</strong> of training at n = 10<sup>6</sup> &mdash; 36 epochs, 0.27% of the schedule this model needs &mdash; PI-GNN&rsquo;s output repairs to 0.37470. The information-free null control sits at 0.39527, and DGA reached 0.43295 in 0.2671 seconds.</div><p class="mut" style="font-size:.87rem">That run was stopped by its wall-clock budget, not by convergence, so it is a lower bound on time-to-parity and nothing more. It does not show the network would never converge.</p><p><strong>Projection, and labelled as one.</strong> Epochs-to-convergence is stable across three decades (12,361 / 14,812 / 13,321), so the epoch count transfers. Taking the count measured at the nearest size (n = 100,000), a full run at the published configuration would take 13,321 &times; 47.4 s = <strong>7.31 days</strong>, against DGA&rsquo;s 0.2671 s on the same instance &mdash; a factor of roughly <strong>2.4 million&times;</strong>. The critique claimed 10<sup>4</sup>; this same-host figure is ~236&times; larger, because their 10<sup>4</sup> compared their own laptop&rsquo;s greedy against GPU timings read off Figure 5 of the paper they were criticising.</p></div>
 </div>
 </section>
 

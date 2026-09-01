@@ -64,9 +64,9 @@ Regenerate with `./pyrt/bin/python code/build_manifest.py`.
 
 | file | bytes | sha256[:16] |
 |---|---|---|
-| `report.html` | 63,152 | `c78300f3d6350dd3` |
-| `site/index.html` | 63,491 | `7dbedb86d877f16c` |
-| `code/build_report.py` | 51,175 | `4597f6439186a5a2` |
+| `report.html` | 67,961 | `b7bebf0911670c93` |
+| `site/index.html` | 68,300 | `a5a894c5fb46db1a` |
+| `code/build_report.py` | 55,262 | `6dc7de055f41283b` |
 | `code/make_site.py` | 1,124 | `4df01946b611a619` |
 | `code/svgchart.py` | 3,318 | `555766f7ad442591` |
 
