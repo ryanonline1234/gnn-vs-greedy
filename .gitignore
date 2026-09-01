@@ -1,0 +1,24 @@
+# Python environment (935 MB)
+pyrt/
+__pycache__/
+*.pyc
+
+# Generated instances (108 MB) — regenerable exactly from seeds via code/gen_graphs.py
+data/
+
+# Third-party papers. These are copyrighted works by their authors; this repository
+# does not redistribute them. Use code/fetch_refs.py to download them from arXiv.
+refs/
+
+# Draft correspondence containing third parties' contact details — kept local.
+outreach/
+
+# Compiled binaries (rebuild with the commands in the README)
+code/greedy
+code/repair
+
+# Deploy artifacts
+site/.vercel/
+.DS_Store
+runlog/
+

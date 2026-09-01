@@ -1,0 +1,30 @@
+{"method": "exact_ilp", "d": 3, "n": 100, "seed": 0, "size": 44, "density": 0.44, "t_total_s": 0.26003313064575195, "status": "Optimal"}
+{"method": "exact_ilp", "d": 3, "n": 100, "seed": 1, "size": 44, "density": 0.44, "t_total_s": 0.08847403526306152, "status": "Optimal"}
+{"method": "exact_ilp", "d": 3, "n": 100, "seed": 2, "size": 44, "density": 0.44, "t_total_s": 0.12324094772338867, "status": "Optimal"}
+{"method": "exact_ilp", "d": 3, "n": 100, "seed": 3, "size": 45, "density": 0.45, "t_total_s": 0.1899549961090088, "status": "Optimal"}
+{"method": "exact_ilp", "d": 3, "n": 100, "seed": 4, "size": 43, "density": 0.43, "t_total_s": 0.3464481830596924, "status": "Optimal"}
+{"method": "exact_ilp", "d": 3, "n": 200, "seed": 0, "size": 90, "density": 0.45, "t_total_s": 3.53717303276062, "status": "Optimal"}
+{"method": "exact_ilp", "d": 3, "n": 200, "seed": 1, "size": 88, "density": 0.44, "t_total_s": 6.609545946121216, "status": "Optimal"}
+{"method": "exact_ilp", "d": 3, "n": 200, "seed": 2, "size": 89, "density": 0.445, "t_total_s": 1.4199237823486328, "status": "Optimal"}
+{"method": "exact_ilp", "d": 3, "n": 200, "seed": 3, "size": 90, "density": 0.45, "t_total_s": 4.578013181686401, "status": "Optimal"}
+{"method": "exact_ilp", "d": 3, "n": 200, "seed": 4, "size": 90, "density": 0.45, "t_total_s": 3.8353500366210938, "status": "Optimal"}
+{"method": "exact_ilp", "d": 5, "n": 100, "seed": 0, "size": 37, "density": 0.37, "t_total_s": 2.145745038986206, "status": "Optimal"}
+{"method": "exact_ilp", "d": 5, "n": 100, "seed": 1, "size": 37, "density": 0.37, "t_total_s": 1.588296890258789, "status": "Optimal"}
+{"method": "exact_ilp", "d": 5, "n": 100, "seed": 2, "size": 37, "density": 0.37, "t_total_s": 1.4597580432891846, "status": "Optimal"}
+{"method": "exact_ilp", "d": 5, "n": 100, "seed": 3, "size": 37, "density": 0.37, "t_total_s": 1.581629991531372, "status": "Optimal"}
+{"method": "exact_ilp", "d": 5, "n": 100, "seed": 4, "size": 37, "density": 0.37, "t_total_s": 2.081015110015869, "status": "Optimal"}
+{"method": "exact_ilp", "d": 5, "n": 200, "seed": 0, "size": 74, "density": 0.37, "t_total_s": 240.0081491470337, "status": "Time limit reached"}
+{"method": "exact_ilp", "d": 5, "n": 200, "seed": 1, "size": 75, "density": 0.375, "t_total_s": 120.96849083900452, "status": "Optimal"}
+{"method": "exact_ilp", "d": 5, "n": 200, "seed": 2, "size": 74, "density": 0.37, "t_total_s": 196.14842319488525, "status": "Optimal"}
+{"method": "exact_ilp", "d": 5, "n": 200, "seed": 3, "size": 75, "density": 0.375, "t_total_s": 95.43235087394714, "status": "Optimal"}
+{"method": "exact_ilp", "d": 5, "n": 200, "seed": 4, "size": 74, "density": 0.37, "t_total_s": 239.93518686294556, "status": "Time limit reached"}
+{"method": "exact_ilp", "d": 20, "n": 100, "seed": 0, "size": 18, "density": 0.18, "t_total_s": 4.887587070465088, "status": "Optimal"}
+{"method": "exact_ilp", "d": 20, "n": 100, "seed": 1, "size": 18, "density": 0.18, "t_total_s": 5.15171480178833, "status": "Optimal"}
+{"method": "exact_ilp", "d": 20, "n": 100, "seed": 2, "size": 18, "density": 0.18, "t_total_s": 7.935969114303589, "status": "Optimal"}
+{"method": "exact_ilp", "d": 20, "n": 100, "seed": 3, "size": 18, "density": 0.18, "t_total_s": 4.923134803771973, "status": "Optimal"}
+{"method": "exact_ilp", "d": 20, "n": 100, "seed": 4, "size": 18, "density": 0.18, "t_total_s": 4.608566045761108, "status": "Optimal"}
+{"method": "exact_ilp", "d": 20, "n": 200, "seed": 0, "size": 36, "density": 0.18, "t_total_s": 240.0034852027893, "status": "Time limit reached"}
+{"method": "exact_ilp", "d": 20, "n": 200, "seed": 1, "size": 35, "density": 0.175, "t_total_s": 240.00367522239685, "status": "Time limit reached"}
+{"method": "exact_ilp", "d": 20, "n": 200, "seed": 2, "size": 36, "density": 0.18, "t_total_s": 240.00213098526, "status": "Time limit reached"}
+{"method": "exact_ilp", "d": 20, "n": 200, "seed": 3, "size": 36, "density": 0.18, "t_total_s": 240.05360102653503, "status": "Time limit reached"}
+{"method": "exact_ilp", "d": 20, "n": 200, "seed": 4, "size": 37, "density": 0.185, "t_total_s": 240.02439665794373, "status": "Time limit reached"}
