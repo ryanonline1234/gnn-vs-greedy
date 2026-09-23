@@ -605,3 +605,114 @@ Consequence for the write-up: replace "the objection is answered on its own term
 retracted per D36) with the precise, defensible statement — the published defence was
 tested as described; it does not restore parity at d=3 or d=5 in our hands, we could not
 reproduce its GraphSAGE figure, and it does not affect the d>=8 collapse at all.
+
+## D38 — Audit round: errata to D28/D31/D33/D35/D37, a configuration disclosure, one open experiment
+2026-09-22. Before citing this repository as evidence in a grant application, a read-only audit
+was run over every committed public file (four lenses — propagation of corrections, numbers vs
+data, reproduction from a fresh clone, first-read clarity — each finding given to an adversarial
+verifier): 109 findings, 106 confirmed, 3 refuted. Every number below was recomputed from
+results/*.jsonl. Nothing was re-measured; this entry corrects how results were counted and
+reported. Drafted with Claude (Opus 5.5) at the author's direction; the author reviews it before
+it is published.
+
+ERRATA — numbers
+1. ESCAPE-TABLE DOUBLE COUNT (corrects D33 and D35). build_report.py:26 guarded the D35 pooling
+   with ("p1", seed) not in _seen, but _seen holds (d, seed) tuples, so the guard never matched and
+   all 15 phase-1 published-config n=1000 rows were pooled. Nine of them re-execute collapse.jsonl
+   cells (d = 3, 5, 20; seeds 0-2; same instance and seed, identical raw_size). By D28's own rule —
+   the same (d, seed) is the same cell — only 6 are new. Corrected:
+       d=3  5/5  [0.57,1.00]     d=5  5/5  [0.57,1.00]     d=20  0/5  [0.00,0.43]
+       POOLED d>=8: **0/87, Wilson 95% CI [0.000, 0.042]**  (was 0/90 [0.000, 0.041])
+       escape table: 127 runs (was 136)
+   D33's "5 unused runs at each of d=3 and d=5 ... pooling gives 8/8" was wrong: 2 per degree were
+   unused. The ceiling conclusion does not change.
+2. D28 "BIT-IDENTICAL" IS WRONG. collapse.jsonl and escape.jsonl overlap on 9 (d, seed) cells —
+   d = 7, 10, 12 x seeds 0-2 — not 3. raw_size and the escape outcome are identical in all 9; final
+   losses are equal in 2, agree within 1e-7 in 5, and differ by ~9.4e-5 in 2 ((7,2) and (12,0)),
+   which also differ by one epoch. They are re-executions of one cell, not copies. De-duplication
+   by (d, seed) stands, and so does 2/10 at d=7. (D26's six audit reruns were a separate check and
+   are not re-examined here.)
+3. RUN-COUNT CONVENTION RETIRED (supersedes D31). The published n=1000 cell at d in {3,5,20},
+   seed in {0,1,2} was executed four times by four drivers: phase1, collapse, the tuning grid's
+   lr=1e-4/P=2 arm, and reply_defence gcn_P2. A "distinct measured runs" total therefore depends on
+   an equivalence rule this study never fixed — which is why 442, 439 and 483 were each wrong (483
+   also omitted D37's 36 runs and D34's 3 traces). Every deliverable now reports the unambiguous
+   count, computed at build time: **534 measurement records across 11 files**. Per-experiment
+   counts are computed where they are quoted. make_site.py no longer hardcodes a count.
+4. D37 TABLE SEED BASIS. Its DGA row was a 5-seed mean (0.9500 / 0.9182) set against 3-seed arms,
+   breaking the same-seed comparison. On seeds 0-2: d=3 0.9479, d=5 0.9148, d=20 density 0.1697.
+   No verdict changes: no arm reaches DGA at d=3 or d=5.
+5. REPLICATION FIGURE standardised to d=3, n=10^4, 5 seeds each: DGA 0.9502, PI-GNN 0.9138. The
+   page had quoted n=10^5, where the PI-GNN figure is a single run.
+
+CORRECTIONS — claims
+6. MECHANISM (narrows the D17/D27 wording). L* = -n/(2Pd) = -12.500 is the uniform optimum of the
+   MODIFIED, post-hoc linear-diagonal objective; under the published quadratic objective the
+   uniform optimum is p* = 0, L* = 0, which is why the trap shows as an empty raw output there.
+   "Predicted before measurement" was not supported: D17 derives the closed form after that arm had
+   run. Wording everywhere is now "closed form, checked against measurement".
+7. "Best tuned arm" 0.9296 was modified_linear — an objective change, not tuning. The best
+   tuning-grid arm at d=3 is AR 0.9231.
+8. Post-processing adds 0.3-2.2% where the network works (d=3 and d=5; D33's own table), not
+   "0.3%".
+9. PROPAGATION. D26, D32, D33, D36 and D37 had reached only some files. REVIEW.md still marked the
+   Replies' defence "Answered" (retracted in D36), STATE.md asserted it, and docs/01-protocol.md
+   still called the defence "untuned". Also stale: "information-free" (D33); the dense-Q wall
+   attributed to the paper rather than the released example notebook (D36); the n=10^6 projection
+   as a point estimate rather than a range (D33: ~6.4-8.1 days, roughly 2.1-2.6 million x DGA);
+   "the paper tests d=3" (D36: d=3 and d=5); prior art uncited (D32); "proven equivalence" (D26).
+   Fixed in the generators and regenerated, not hand-edited.
+
+DISCLOSURE — configuration (new)
+10. The study's "published configuration" is the authors' RELEASED EXAMPLE IMPLEMENTATION, which
+    differs from the paper's text in two hyperparameters:
+    - EMBEDDING SIZE. The paper: "if the number of nodes is large (n>=10^5), then we set
+      d0 = int(sqrt n), else we set d0 = int(cbrt n)". The notebook — and this study, pignn.py:110
+      (D4) — use int(sqrt n) at every n. So every n=10^3 and n=10^4 result (escape table, tuning
+      grid, post-hoc arms, D37) ran d0 = 31 / 100 where the paper's text gives 10 / 21. At n>=10^5
+      the two agree, so Claim B and D22's n^2/2 argument are unaffected. D13(c)'s "dim_embedding=
+      sqrt(n) is the published formula" is wrong below n=10^5.
+    - PATIENCE. The paper: "a patience of 10^3"; the notebook and this study: 100 (D4). For the
+      ceiling this is covered — the post-hoc arm with patience 5,000 is also empty at d=20 (D17).
+    Wording now calls it the released implementation's configuration and states both differences.
+11. OPEN: whether the d>=8 ceiling holds with the paper's d0 = int(cbrt n) at n=1000 is UNTESTED.
+    The post-hoc arms (D17) only tried a LARGER width (256); the paper's rule is SMALLER (10).
+    Discriminating experiment, not run in this correction round because it is new measurement:
+        python code/runner.py --out results/cbrt_d0.jsonl --methods pignn_pub --tag pignn_cbrt \
+            --dim-embedding 10 --n 1000 --d 3 5 8 12 20 --seeds 0 1 2 3 4
+    (hidden = int(d0/2) = 5, matching the paper's d1.) Until it runs, the ceiling is a claim about
+    the released implementation's configuration, and the deliverables say so.
+
+REPRODUCTION
+12. analyze.py crashed with no arguments on the committed data (KeyError: 'method'); it now
+    defaults to the files it was written for. fetch_refs.py now also clones the reference
+    implementation into refs/pignn/ at commit 955489d, the one used here. requirements.txt pins the
+    third-party imports actually used. test_port.py was checked on a fresh clone: it needs no
+    refs/ or data/ and prints PASS. runner.py re-measures into a new --out path; the four sweep
+    drivers (collapse_sweep, escape_prob, escape_d10plus, reply_defence) take no --out and skip
+    cells already in their fixed output file, so the README moves that file aside with mv -n
+    (git checkout restores it). make_plots.py and analyze.py no longer crash on the mixed-schema
+    results/ directory.
+
+PRESENTATION
+13. The live page gains a repository link, a provenance line (its prose is AI-written), and a
+    Corrections line near the top pointing to D36 and this entry.
+
+WITHDRAWN — a published-work comparison (found during the fix, after the audit)
+14. THE KRUTSKY "DISAGREEMENT" WAS A CROSS-PROBLEM COMPARISON. D35 called the d=10 result "a
+    direct quantitative disagreement ... the study's sharpest genuinely-new claim". It compared
+    this study's MIS measurement with Krutsky et al.'s MAXCUT result. Their MaxCut tables are
+    non-collapsed at d=10 (Table 1, N=1000 best-of-N, baseline 3144.10); their MIS tables put the
+    baseline at 0.00 at d=10 (Table 2 best-of-N 421.75 / 345.90 / 0.00 at d = 3 / 5 / 10; Table 11
+    average; Table 3 at N=100) — which AGREES with the 0/10 here. Their prose places the degenerate
+    regime at d in {20,30,40,50}, which matches their MaxCut tables rather than their MIS ones.
+    The claim is withdrawn everywhere. What survives is modest and real: their grid jumps from d=5
+    to d=10, and this study's d = 6, 7, 8, 9 rows place the MIS escape transition at d ~ 6-7
+    (9/10 at d=6, 2/10 at d=7, 0/10 at d=8). The unsent draft outreach/email-draft-krutsky.md
+    leads with the withdrawn claim and must not be sent. The emails sent 2026-09-01 to Böther and
+    to Angelini & Ricci-Tersenghi stated it, with 0/90 and "predicted before measurement";
+    corrections to both are the author's to send.
+15. D34's "n=1e3 d=3: raw 823 -> 780 over 60 epochs (ratio 0.95)": 780 is the value at epoch 36
+    (0.95 is the 36-epoch window D34 compares against); at epoch 60 it is 760 (0.92). D34's n=1e4
+    trace to 3,000 epochs (minimum 8 at epoch 450) is a separate record (method escape_epoch) in
+    results/early_trace.jsonl. The conclusion does not change.

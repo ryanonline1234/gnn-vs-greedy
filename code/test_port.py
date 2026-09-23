@@ -1,4 +1,17 @@
-"""Equivalence tests: our sparse port vs the reference implementation's dense math.
+"""Port-equivalence test for the FORWARD MATHEMATICS only: our sparse loss and our GCN layer
+vs the reference implementation's dense math, re-derived inline below. It needs nothing in
+refs/ and runs on a fresh clone.
+
+What it does NOT cover (D26, D37):
+  - The GCN normalisation check is vacuous on the d-regular graphs used here: there
+    D^-1 A == D^-1/2 A D^-1/2, so a row-normalised mutant also passes. The irregular-graph
+    check that closes this (G(30, 0.2), 2.4e-7) was run outside this file (D26); every study
+    instance is d-regular, where the two variants coincide.
+  - The GraphSAGE layer (pignn.SAGELayer, used for the D37 defence arm) is untested: no
+    reference implementation of the Reply's GraphSAGE exists to compare against.
+  - The training loop, early stopping and bitstring selection are outside the test (D26).
+A PASS shows the port computes the reference's forward formulas; it is not a proof of
+end-to-end equivalence.
 
 Reference (amazon-science/co-with-gnns-example):
   qubo_dict_to_torch + gen_q_dict_mis  ->  dense Q, Q[u][v]=2 per nx edge (one direction),
@@ -38,6 +51,7 @@ for (n, d) in [(30, 3), (60, 5), (50, 20)]:
     if dl > 1e-9: ok = False
 
     # ---------- 2. dense GCN propagation vs our index_add layer ----------
+    # (on d-regular graphs sym-norm == row-norm, so this does not pin the normalisation; D26)
     A = np.zeros((n, n))
     for (u, v) in edges: A[u][v] = 1; A[v][u] = 1
     deg = A.sum(1)

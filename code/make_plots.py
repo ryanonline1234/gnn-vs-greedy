@@ -28,7 +28,10 @@ def load():
 
 def agg(recs):
     g = defaultdict(list)
-    for r in recs: g[(r["method"], r["d"], r["n"])].append(r)
+    for r in recs:
+        # results/ also holds sweep and trace files with other schemas; skip them (D38)
+        if "method" not in r or "density" not in r or "t_total_s" not in r: continue
+        g[(r["method"], r["d"], r["n"])].append(r)
     return {k: dict(
         dens=np.mean([x["density"] for x in v]),
         sem=(np.std([x["density"] for x in v], ddof=1)/np.sqrt(len(v))) if len(v)>1 else 0.0,

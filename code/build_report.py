@@ -15,15 +15,24 @@ def loadf(name):
     p = os.path.join(R, name)
     return [json.loads(l) for l in open(p) if l.strip()] if os.path.exists(p) else []
 
+def count_records():
+    """Every measurement record in results/*.jsonl, one per non-blank line. D38 retires the
+    D31 'distinct measured runs' convention: the published n=1000 cell was executed by four
+    drivers, so 'distinct' depended on an equivalence rule the study never fixed."""
+    return sum(1 for p in glob.glob(os.path.join(R, "*.jsonl"))
+               for l in open(p) if l.strip())
+
 main = loadf("phase1.jsonl") + loadf("phase2.jsonl")
 tune = loadf("tuning.jsonl"); post = loadf("posthoc.jsonl")
 _coll_raw = loadf("collapse.jsonl") + loadf("escape.jsonl")
-# the two sweeps re-ran identical (d, seed) cells at d=7 — de-duplicate (D28)
+# the two sweeps re-ran identical (d, seed) cells at d=7, 10 and 12, seeds 0-2 — de-duplicate (D28)
 coll = list({(r["d"], r["seed"]): r for r in _coll_raw}.values())
-# phase1 holds published-config n=1000 runs at d=3,5 never pooled into the escape table (D35)
+# phase1 holds released-config n=1000 runs at d=3,5,20; pool only the (d, seed) cells the
+# sweeps do not already hold — seeds 0-2 ARE the collapse.jsonl cells (D28, D38). The seed is
+# tagged ("p1", seed) so these rows stay identifiable as phase1 rows downstream.
 _seen = {(r["d"], r["seed"]) for r in coll}
 for _r in loadf("phase1.jsonl"):
-    if _r["method"] == "pignn_pub" and _r["n"] == 1000 and ("p1", _r["seed"]) not in _seen:
+    if _r["method"] == "pignn_pub" and _r["n"] == 1000 and (_r["d"], _r["seed"]) not in _seen:
         coll.append(dict(d=_r["d"], seed=("p1", _r["seed"]), raw_size=_r.get("raw_size", 0)))
 pstats = loadf("pstats.jsonl")
 
@@ -46,6 +55,11 @@ def stat(m, d, n, f="density"):
 def ar(m, d, n):
     s = stat(m, d, n)
     return None if (s is None or d not in RHO_UB) else s["mean"]/RHO_UB[d]
+def mean_seeds(m, d, n, seeds=(0, 1, 2), f="density"):
+    """Mean over the given seeds only — for same-seed comparisons against the 3-seed
+    tuning, post-hoc and D37 arms (D38: a 5-seed baseline is a seed-basis mismatch)."""
+    v = [r[f] for r in A.get((m, d, n), []) if r["seed"] in seeds]
+    return float(np.mean(v)) if v else None
 
 NS = sorted({k[2] for k in A}); DS = sorted({k[1] for k in A})
 esc = defaultdict(list)
@@ -85,14 +99,18 @@ def chart_escape():
           f'stroke="var(--refuted)" stroke-width="1" stroke-dasharray="3 3" opacity=".5"/>')
     c.text((xa+xb)/2, c.pt - 6, "the method stops working here", "ann", "middle")
     c.axlabel("degree d of the random regular graph",
-              "runs returning a non-empty set")
+              "runs with a non-empty raw output")
     return c.render("Escape probability versus graph degree")
 
 # ---------------- chart 2: quality dot plot ----------------
 def chart_quality():
     rows = []
     for d in [x for x in DS if x in RHO_UB]:
-        n = max(nn for nn in NS if stat("dga", d, nn))
+        # largest size where PI-GNN has its full seed set and DGA ran (n = 1e5 PI-GNN is one run,
+        # and at d = 5 PI-GNN never ran there; D38)
+        kmax = max(stat("pignn_pub", d, nn)["k"] for nn in NS if stat("pignn_pub", d, nn))
+        n = max(nn for nn in NS if stat("dga", d, nn) and stat("pignn_pub", d, nn)
+                and stat("pignn_pub", d, nn)["k"] == kmax)
         rows.append((d, n))
     c = Chart(720, 90 + 96*len(rows), pad=(30, 18, 44, 150))
     lo, hi = 0.78, 0.99
@@ -113,7 +131,7 @@ def chart_quality():
               f'stroke="var(--ink)" stroke-width="1.4" stroke-dasharray="4 3"/>')
         if i == 0: c.text(x1r - 6, y0 + 16, "1RSB optimum", "ann", "end")
         series = [("DGA (greedy)", ar("dga", d, n), C_DGA),
-                  ("PI-GNN (published)", ar("pignn_pub", d, n), C_GNN),
+                  ("PI-GNN (released config.)", ar("pignn_pub", d, n), C_GNN),
                   ("null control", ar("null_ones", d, n), C_NULL),
                   ("random greedy", ar("ga", d, n), C_GA)]
         for j, (lab, v, col) in enumerate(series):
@@ -221,8 +239,9 @@ def tuning_table():
     for d in sorted(best):
         ubd = RHO_UB.get(d)
         f = (lambda v: f"{v/ubd:.4f}") if ubd else (lambda v: f"{v:.5f}")
-        dg = stat("dga", d, 1000)["mean"]; pb = stat("pignn_pub", d, 1000)["mean"]
-        nul = stat("null_ones", d, 1000)["mean"]
+        # same seeds (0-2) as the tuning and post-hoc arms beside them (D38)
+        dg = mean_seeds("dga", d, 1000); pb = mean_seeds("pignn_pub", d, 1000)
+        nul = mean_seeds("null_ones", d, 1000)
         bm, lr, pen, nz, k = best[d]
         pm, pn, pnz, pk = bestph[d]
         allnz = sum(1 for r in tune if r["d"] == d and r["raw_size"] > 0)
@@ -248,7 +267,7 @@ def mean_field_rows():
             ps, Ls = 1.0/(P*d), -n/(2.0*P*d)
             obs = np.mean([x["final_loss"] for x in v])
             broke = obs < Ls - 0.02*abs(Ls)
-            arm_lab = "lr 1e-4" if m == "modified_linear" else "lr 1e-3"
+            arm_lab = "modified objective, lr 1e-4" if m == "modified_linear" else "modified objective, lr 1e-3"
             out.append(f'<tr><td class="nc">{arm_lab}</td><td class="nc">{d}</td><td class="num">{ps:.4f}</td>'
                        f'<td class="num">{Ls:.3f}</td><td class="num">{obs:.3f}</td>'
                        f'<td>{"<span class=ok>symmetry-broken</span>" if broke else "<span class=bad>stuck at the mean field</span>"}</td></tr>')
@@ -279,10 +298,13 @@ def decomp_rows():
                 fin = np.mean([r["size"] for r in v])
                 share = 100.0 * (fin - raw) / fin if fin else 0.0
                 cls = "gnn" if m == "pignn_pub" else "sigrow"
+                # the all-ones raw set is not an independent set (repair removes nodes), so a
+                # "share added" figure is meaningless for the null rows (D38)
+                sh = (f'{share:+.1f}%' if m == "pignn_pub" else '&mdash;')
                 out.append(f'<tr class="{cls}"><td>{lab}</td><td class="nc">{d}</td>'
                            f'<td class="nc">{n:,}</td><td class="num">{raw:,.0f}</td>'
                            f'<td class="num">{fin:,.0f}</td>'
-                           f'<td class="num">{share:+.1f}%</td></tr>')
+                           f'<td class="num">{sh}</td></tr>')
     return "".join(out)
 
 
@@ -302,8 +324,8 @@ def reply_rows():
         head = (f"d = {d}" + (f" &nbsp;<span class=mut>approximation ratio</span>" if ub
                 else " &nbsp;<span class=mut>density; no published bound adopted</span>"))
         out.append(f'<tr class="grp"><th colspan="4">{head}</th></tr>')
-        _dg = stat("dga", d, 1000)
-        dg = _dg["mean"] if _dg else None
+        # DGA on the same seeds 0-2 as the four arms (D38; was a 5-seed mean)
+        dg = mean_seeds("dga", d, 1000)
         for m in ("gcn_P2", "gcn_P10", "sage_P2", "sage_P10"):
             v = g.get((m, d))
             if not v: continue
@@ -315,7 +337,7 @@ def reply_rows():
                        f'<td class="num mut">{np.mean([x["raw_size"] for x in v]):,.0f}</td></tr>')
         if dg:
             dval = dg/ub if ub else dg
-            out.append(f'<tr class="win"><td>DGA (greedy)</td><td class="num">{dval:.4f}</td>'
+            out.append(f'<tr class="win"><td>DGA (greedy) &nbsp;<span class=mut>(same seeds 0&ndash;2)</span></td><td class="num">{dval:.4f}</td>'
                        f'<td class="num">&mdash;</td><td class="num mut">&mdash;</td></tr>')
     return "".join(out)
 
@@ -341,7 +363,44 @@ def scale_facts():
         f["proj_s"] = f["epochs"] * f["probe"]["ms_per_epoch"] / 1000.0
         f["proj_days"] = f["proj_s"] / 86400.0
         f["ratio"] = f["proj_s"] / f["dga"]["t_total_s"] if f["dga"] else None
+        # D33: the two measured n=1e6 per-epoch costs disagree, so report a RANGE, not a point.
+        # Per-epoch cost: budgeted run (t_train / epochs) to the probe. Epochs-to-convergence:
+        # the counts measured at the sizes nearest 1e6 (n >= 1e4).
+        costs = [f["probe"]["ms_per_epoch"] / 1000.0]
+        if f["bud"]:
+            costs.append(f["bud"]["t_train_s"] / f["bud"]["epochs_run"])
+        near = {n: e for n, e in f["epochs_by_n"].items() if n >= 10000} or f["epochs_by_n"]
+        f["cost_lo"], f["cost_hi"] = min(costs), max(costs)
+        f["ep_lo"], f["ep_hi"] = min(near.values()), max(near.values())
+        f["ep_lo_n"] = min(n for n, e in near.items() if e == f["ep_lo"])
+        f["ep_hi_n"] = min(n for n, e in near.items() if e == f["ep_hi"])
+        f["proj_s_lo"] = f["ep_lo"] * f["cost_lo"]
+        f["proj_s_hi"] = f["ep_hi"] * f["cost_hi"]
+        f["days_lo"], f["days_hi"] = f["proj_s_lo"] / 86400.0, f["proj_s_hi"] / 86400.0
+        if f["dga"]:
+            f["ratio_lo"] = f["proj_s_lo"] / f["dga"]["t_total_s"]
+            f["ratio_hi"] = f["proj_s_hi"] / f["dga"]["t_total_s"]
     return f
+
+def _pow10(n):
+    e = int(round(math.log10(n)))
+    return f"10<sup>{e}</sup>" if 10**e == n else f"{n:,}"
+
+def early_trace_facts(window):
+    """D34: the n=1e6 budgeted run's raw-output decay, set beside traced smaller runs over
+    the same window of epochs (raw at the last traced epoch <= window, over raw at epoch 0)."""
+    et = loadf("early_trace.jsonl")
+    out = {}
+    for r in et:
+        pts = r.get("points") or []
+        if r["method"] == "escape_epoch":
+            out["esc"] = dict(n=r["n"], min_raw=r["min_raw"], min_epoch=r["min_raw_epoch"],
+                              last=pts[-1] if pts else None, max_epochs=r["max_epochs"])
+        elif r["method"] == "early_trace" and pts:
+            last = max((p for p in pts if p["epoch"] <= window), key=lambda p: p["epoch"])
+            out.setdefault("ratio", {})[r["n"]] = last["raw"] / pts[0]["raw"]
+    return out
+
 
 def scaling_rows():
     acc = defaultdict(list)
@@ -384,37 +443,69 @@ def scale_block():
              '<th class="num">ms / epoch</th><th class="num">&times; per decade</th>'
              '<th class="num">local exponent</th><th class="num">embedding</th></tr></thead><tbody>'
              + scaling_rows() + '</tbody></table></div>')
-    o.append(f'<div class="col"><p>The paper\u2019s own rule &mdash; <code>dim_embedding = '
-             f'int(sqrt(n))</code>, <code>hidden = dim/2</code> &mdash; makes the first layer a dense '
+    o.append(f'<div class="col"><p>The paper sets <code>dim_embedding = int(sqrt(n))</code> only '
+             f'for n &ge; 10<sup>5</sup>, and <code>int(cbrt(n))</code> below that; the released '
+             f'notebook, and this study, use <code>int(sqrt(n))</code> at every n (the embedding '
+             f'column above). From n = 10<sup>5</sup> up the two agree: <code>dim_embedding = '
+             f'int(sqrt(n))</code>, <code>hidden = dim/2</code> makes the first layer a dense '
              f'<code>(n &times; dim) @ (dim &times; hidden)</code> matmul, so arithmetic grows as '
              f'n&sup2;/2 <em>regardless of how sparse the graph is</em>. Measured time does not track '
-             f'that cleanly: slower than the arithmetic below n = 10<sup>5</sup>, and about 3&times; '
-             f'faster than it in the last decade, where the 14.9 GiB working set goes memory-bound.</p>')
+             f'that cleanly: it grew more slowly than that arithmetic below n = 10<sup>5</sup>, and about '
+             f'3&times; faster than it in the last decade, where the 14.9 GiB working set goes memory-bound.</p>')
     if f["bud"]:
         b = f["bud"]
         pctd = 100.0 * b["epochs_run"] / f["epochs"]
         o.append(f'<div class="kicker">Measured, not projected: after <strong>{b["t_train_s"]:,.0f} s</strong> '
                  f'of training at n = 10<sup>6</sup> &mdash; {b["epochs_run"]} epochs, '
                  f'{pctd:.2f}% of the schedule this model needs &mdash; PI-GNN&rsquo;s output repairs to '
-                 f'{b["density"]:.5f}. The information-free null control sits at '
+                 f'{b["density"]:.5f}. The all-ones null control sits at '
                  f'{f["null"]["density"]:.5f}, and DGA reached {f["dga"]["density"]:.5f} in '
                  f'{f["dga"]["t_total_s"]:.4f} seconds.</div>'
                  f'<p class="mut" style="font-size:.87rem">That run was stopped by its wall-clock budget, '
                  f'not by convergence, so it is a lower bound on time-to-parity and nothing more. It does '
-                 f'not show the network would never converge.</p>')
+                 f'not show the network would never converge.')
+        cps = b.get("checkpoints") or []
+        et = early_trace_facts(b["epochs_run"])
+        if cps and et.get("esc"):
+            c0, c1, ee = cps[0], cps[-1], et["esc"]
+            rs = et.get("ratio", {})
+            rs[b["n"]] = c1["raw"] / c0["raw"]
+            rtxt = " / ".join(f"{rs[n]:.2g}" for n in sorted(rs))
+            ntxt = " / ".join(_pow10(n) for n in sorted(rs))
+            o.append(f' Its raw output fell from {c0["raw"]:,} nodes (epoch {c0["epoch"]}) to '
+                     f'{c1["raw"]:,} (epoch {c1["epoch"]}) with the loss still positive, which '
+                     f'resembles the high-degree collapse. A traced n = {_pow10(ee["n"])} run (one '
+                     f'seed) shows the same dip, to {ee["min_raw"]:,} nodes at epoch {ee["min_epoch"]:,}, '
+                     f'then recovers to {ee["last"]["raw"]:,} by epoch {ee["last"]["epoch"]:,}; the '
+                     f'n = 10<sup>6</sup> run stopped far earlier in its schedule than that minimum, so '
+                     f'the decay is consistent with the normal early transient (D34). The decay '
+                     f'<em>rate</em> depends strongly on n (raw-size ratio {rtxt} over the first '
+                     f'{b["epochs_run"]} epochs at n = {ntxt}), and that is not explained here.')
+        o.append('</p>')
     if f.get("proj_s"):
         eplist = " / ".join(f"{e:,}" for _, e in sorted(f["epochs_by_n"].items()))
         o.append(f'<p><strong>Projection, and labelled as one.</strong> Epochs-to-convergence is stable '
-                 f'across three decades ({eplist}), '
-                 f'so the epoch count transfers. Taking the count measured at the nearest size '
-                 f'(n = {f["epochs_src_n"]:,}), a full run at the published configuration would take '
-                 f'{f["epochs"]:,} &times; {f["probe"]["ms_per_epoch"]/1000:,.1f} s = '
-                 f'<strong>{f["proj_days"]:,.2f} days</strong>, against DGA&rsquo;s '
+                 f'across three decades ({eplist}; the n = 10<sup>5</sup> figure is a single run), '
+                 f'so the epoch count transfers. Using the counts measured at the two sizes nearest '
+                 f'10<sup>6</sup> ({f["ep_lo"]:,} at n = {_pow10(f["ep_lo_n"])}, {f["ep_hi"]:,} at '
+                 f'n = {_pow10(f["ep_hi_n"])}) and the two measured per-epoch costs at n = 10<sup>6</sup> '
+                 f'({f["cost_lo"]:,.2f} s from the budgeted run, {f["cost_hi"]:,.2f} s from the probe), '
+                 f'a full run at the released implementation&rsquo;s configuration would take '
+                 f'<strong>{f["days_lo"]:,.1f}&ndash;{f["days_hi"]:,.1f} days</strong>, against DGA&rsquo;s '
                  f'{f["dga"]["t_total_s"]:.4f} s on the same instance &mdash; a factor of roughly '
-                 f'<strong>{f["ratio"]/1e6:,.1f} million&times;</strong>. The critique claimed 10<sup>4</sup>; this '
-                 f'same-host figure is ~{f["ratio"]/1e4:,.0f}&times; larger, because their 10<sup>4</sup> '
+                 f'<strong>{f["ratio_lo"]/1e6:,.1f}&ndash;{f["ratio_hi"]/1e6:,.1f} million&times;</strong>. '
+                 f'The critique claimed 10<sup>4</sup>; this same-host figure is '
+                 f'~{f["ratio_lo"]/1e4:,.0f}&ndash;{f["ratio_hi"]/1e4:,.0f}&times; larger, because their 10<sup>4</sup> '
                  f'compared their own laptop&rsquo;s greedy against GPU timings read off Figure 5 of the '
-                 f'paper they were criticising.</p>')
+                 f'paper they were criticising. Every GNN cost at n = 10<sup>6</sup> is CPU-only: the '
+                 f'faster-device rule (D12) was never executed at this size, an unexecuted protocol '
+                 f'step (D33).</p>'
+                 f'<p class="mut" style="font-size:.87rem">The Reply to Angelini reports an updated '
+                 f'post-processing (its scaling improves from ~n<sup>2.0</sup> to ~n<sup>1.0</sup>, total '
+                 f'run time from ~n<sup>1.7</sup> to ~n<sup>0.8</sup>). The timings on this page are of '
+                 f'the original released implementation, followed by this study&rsquo;s own repair pass '
+                 f'(<code>code/repair.c</code>); the updated routine is not tested here. The projection '
+                 f'above counts training epochs only.</p>')
     o.append('</div>')
     return "".join(o)
 
@@ -584,9 +675,17 @@ footer{margin-top:64px;padding-top:22px;border-top:1px solid var(--rule)}
 
 def build():
     d3n = max(n for n in NS if stat("pignn_pub", 3, n))
-    dga3, gnn3, nul3 = ar("dga", 3, d3n), ar("pignn_pub", 3, d3n), ar("null_ones", 3, d3n)
-    t_g = stat("pignn_pub", 3, d3n, "t_total_s")["mean"]
-    t_d = stat("dga", 3, d3n, "t_total_s")["mean"]
+    # replication and null-control figures at the largest size with the full seed set
+    # (n = 1e5 has a single PI-GNN run, so it is not headlined; F3/D38)
+    _kmax = max(stat("pignn_pub", 3, n)["k"] for n in NS if stat("pignn_pub", 3, n))
+    rep_n = max(n for n in NS if stat("pignn_pub", 3, n) and stat("pignn_pub", 3, n)["k"] == _kmax
+                and stat("dga", 3, n) and stat("null_ones", 3, n))
+    rep_k = min(stat(m, 3, rep_n)["k"] for m in ("dga", "pignn_pub"))
+    rep_dga, rep_gnn = ar("dga", 3, rep_n), ar("pignn_pub", 3, rep_n)
+    rep_nul = ar("null_ones", 3, rep_n)
+    # speed at the full-seed replication size (n = 1e5 is a single PI-GNN run; D38)
+    t_g = stat("pignn_pub", 3, rep_n, "t_total_s")["mean"]
+    t_d = stat("dga", 3, rep_n, "t_total_s")["mean"]
     speed = t_g / t_d
     d20n = max(n for n in NS if stat("pignn_pub", 20, n))
     g20 = stat("pignn_pub", 20, d20n)["mean"]; n20 = stat("null_ones", 20, d20n)["mean"]
@@ -595,26 +694,63 @@ def build():
     tune_n20 = sum(1 for r in tune if r["d"] == 20)
     ph_nz20 = sum(1 for r in post if r["d"] == 20 and r["raw_size"] > 0)
     ph_n20 = sum(1 for r in post if r["d"] == 20)
-    # coll includes phase1 records pooled for the escape table (D35); those are already
-    # counted in main, so exclude them here to keep this a DISTINCT-run count (D31).
-    _coll_own = sum(1 for r in coll if not (isinstance(r["seed"], (list, tuple))
-                                            and r["seed"][0] == "p1"))
-    total_runs = len(main) + len(tune) + len(post) + _coll_own + len(exact)
-    total_runs += len(scale)
-    # pstats are instrumented re-runs of cells already counted above, not new measurements;
-    # coll is de-duplicated at load. This yields the distinct-run count. (D31)
+    # post-processing share where the network works (raw output non-empty), from decomp_rows' data
+    _shares = []
+    for d in (3, 5, 20):
+        for n in (1000, 100000):
+            v = A.get(("pignn_pub", d, n))
+            if not v: continue
+            raw = np.mean([r.get("raw_size", 0) for r in v]); fin = np.mean([r["size"] for r in v])
+            if raw > 0 and fin: _shares.append(100.0 * (fin - raw) / fin)
+    dec_lo, dec_hi = min(_shares), max(_shares)
+    # the Reply's defence (D37), from results/reply_defence.jsonl
+    rd = loadf("reply_defence.jsonl")
+    rd_n20 = sum(1 for r in rd if r["d"] == 20)
+    rd_nz20 = sum(1 for r in rd if r["d"] == 20 and r["raw_size"] > 0)
+    def _rd(m, d, fld="density"):
+        v = [r[fld] for r in rd if r["method"] == m and r["d"] == d]
+        return float(np.mean(v)) if v else float("nan")
+    def _rdnz(m, d):
+        v = [r for r in rd if r["method"] == m and r["d"] == d]
+        return f"{sum(1 for r in v if r['raw_size'] > 0)}/{len(v)}"
+    rd_g2_3, rd_g10_3 = _rd("gcn_P2", 3) / RHO_UB[3], _rd("gcn_P10", 3) / RHO_UB[3]
+    rd_g2_5, rd_g10_5 = _rd("gcn_P2", 5) / RHO_UB[5], _rd("gcn_P10", 5) / RHO_UB[5]
+    rd_g10_5nz = _rdnz("gcn_P10", 5)
+    rd_s10_3 = _rd("sage_P10", 3) / RHO_UB[3]
+    rd_dga3 = mean_seeds("dga", 3, 1000) / RHO_UB[3]
+    rd_arms = len({r["method"] for r in rd})
+    # what tuning / post-hoc buy over the released configuration, on the same seeds 0-2
+    def _best_gain(rows, key):
+        best = 0.0
+        for d in RHO_UB:
+            pb = mean_seeds("pignn_pub", d, 1000)
+            g = defaultdict(list)
+            for r in rows:
+                if r["d"] == d: g[key(r)].append(r["density"])
+            if pb and g:
+                best = max(best, 100.0 * (max(np.mean(v) for v in g.values()) - pb) / RHO_UB[d])
+        return best
+    tune_gain = _best_gain(tune, lambda r: (r["lr"], r["penalty"]))
+    post_gain = _best_gain(post, lambda r: r["method"])
+    # every record in results/*.jsonl, computed at build time — never hardcoded (D38)
+    n_records = count_records()
+    esc_runs = sum(k for e, k in ESC.values())
     _hk = sum(e for d, (e, k) in ESC.items() if d >= 8)
     _hn = sum(k for d, (e, k) in ESC.items() if d >= 8)
     _wl, _wh = wilson(_hk, _hn)
-    pooled_hi = (f"{_hk}/{_hn} runs produced a non-empty set "
+    # the prose below states these as facts; refuse to build if the data stop supporting them (D38)
+    assert _hk == 0, "ceiling prose says every raw output at d >= 8 is empty"
+    assert tune_nz20 + ph_nz20 + rd_nz20 == 0, "defence prose says no d = 20 arm returns a non-empty raw output"
+    pooled_hi = (f"{_hk}/{_hn} runs produced a non-empty raw output "
                  f"(Wilson 95% CI [{_wl:.3f}, {_wh:.3f}])")
     if pstats:
         _sc = [r["std_over_pstar"] for r in pstats]
         pstat_scatter = f"{min(_sc)*100:.0f}&ndash;{max(_sc)*100:.0f}%"
         pstat_mean = f"{np.mean([r['p_mean'] for r in pstats]):.4f}"
         pstat_max = f"{max(r['p_max'] for r in pstats):.3f}"
+        pstat_gap = f"{math.floor(0.5 / max(r['p_max'] for r in pstats))}"
     else:
-        pstat_scatter, pstat_mean, pstat_max = "~28%", "0.026", "0.074"
+        pstat_scatter, pstat_mean, pstat_max, pstat_gap = "~28%", "0.026", "0.074", "6"
     _sf = scale_facts()
     if not _sf["probe"]:
         claimB_stamp = "Not yet adjudicated"
@@ -624,10 +760,11 @@ def build():
         claimB_stamp = "Upheld only after repair"
         _tib = _sf["dense"]["dense_bytes"] / 2**40 if _sf["dense"] else None
         claimB_body = (
-            f"Reachable &mdash; but not by the published code, which builds a dense n&times;n matrix "
-            f"({_tib:,.1f} TiB at n = 10<sup>6</sup>). With a sparse reformulation the paper does not "
-            f"contain, a full run still projects to {_sf['proj_days']:,.1f} days against greedy's "
-            f"{_sf['dga']['t_total_s']:.3f} s.")
+            f"Reachable &mdash; but not by the released example implementation, which builds a dense "
+            f"n&times;n matrix ({_tib:,.1f} TiB at n = 10<sup>6</sup>); the paper does not describe its "
+            f"construction at that scale. With a mathematically identical sparse reformulation, a full "
+            f"run still projects to {_sf['days_lo']:,.1f}&ndash;{_sf['days_hi']:,.1f} days against "
+            f"greedy's {_sf['dga']['t_total_s']:.3f} s.")
 
     H = f"""<title>The PI-GNN Verdict</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -637,11 +774,17 @@ def build():
 <div class="wrap">
 
 <header class="col">
-  <p class="eyebrow">Adjudication &middot; re-run on one machine</p>
+  <p class="eyebrow">Adjudication &middot; re-run on one machine &middot; <a href="https://github.com/ryanonline1234/gnn-vs-greedy">code &amp; data</a></p>
   <h1>Does the graph neural network beat greedy?</h1>
   <p class="stand">A paper, two formal Comments and two Replies in <em>Nature Machine Intelligence</em>,
   and nobody moving. So I re-ran it: same host, same graphs, same seeds, both sides
-  implemented from the published sources, with an answer key.</p>
+  implemented from the published papers and code &mdash; the Reply&rsquo;s GraphSAGE variant
+  reconstructed from its text alone &mdash; with an answer key.</p>
+  <p class="meta">Corrections: this study has withdrawn two of its own claims &mdash; that the
+  Replies&rsquo; objection had been &ldquo;answered on its own terms&rdquo; (D36, <a href="#defence">below</a>),
+  and a claimed disagreement with Krutsk&yacute; et al. that compared against their MaxCut rather
+  than their MIS results (D38) &mdash; and records its numerical errata in D38. All are in
+  <a href="https://github.com/ryanonline1234/gnn-vs-greedy/blob/main/DECISIONS.md">DECISIONS.md</a>.</p>
 </header>
 
 <section>
@@ -665,7 +808,7 @@ def build():
     <h3>Claim A &middot; parity with existing solvers</h3>
     <div class="stamp">Refuted</div>
     <p>A degree-based greedy finds larger independent sets at every degree and every size
-    tested, and does it up to {speed:,.0f}&times; faster on the same machine.</p>
+    tested, and at n = {rep_n:,} does it about {speed:,.0f}&times; faster on the same machine.</p>
   </div>
   <div class="vcard partial">
     <h3>Claim B &middot; scale to millions of variables</h3>
@@ -675,8 +818,9 @@ def build():
   <div class="vcard refuted">
     <h3>Undisclosed &middot; operating range</h3>
     <div class="stamp">Fails above d &asymp; 7</div>
-    <p>Past degree seven the method returns the empty set in every run. The paper's own
-    experiments sit at degree three.</p>
+    <p>Past degree seven the network&rsquo;s raw output is empty in every run (n = 1000, the
+    released implementation&rsquo;s configuration; untested under the paper&rsquo;s smaller
+    embedding at this size). The paper's own experiments sit at degrees three and five.</p>
   </div>
 </div>
 </section>
@@ -690,22 +834,27 @@ def build():
   McKay's upper bound &mdash; the same metric the critique used, so these numbers sit directly
   beside the published ones. Every set below was verified independent and maximal by a
   separate checker.</p>
+  <p>&ldquo;As published&rdquo; and &ldquo;published configuration&rdquo; on this page mean the
+  authors&rsquo; released example implementation&rsquo;s setting, which uses an embedding of
+  <code>int(sqrt(n))</code> at every n and a patience of 100; the paper&rsquo;s text uses
+  <code>int(cbrt(n))</code> below n = 10<sup>5</sup> (10 rather than 31 at n = 1000) and a patience
+  of 10<sup>3</sup>. Whether the results below hold under that smaller embedding is untested (D38).</p>
 </div>
 <div class="scroll"><table class="data">
 <thead><tr><th>n</th><th>method</th><th class="num">density</th><th class="num">AR</th>
 <th class="num">wall clock</th><th class="num">trials</th></tr></thead>
 <tbody>{main_table()}</tbody></table></div>
 <div class="col">
-<p>The replication holds: at d = 3 the greedy lands at AR {dga3:.4f} against the critique's
-published &asymp;0.95, and PI-GNN at {gnn3:.4f} against their &asymp;0.92. Both sides of their
-figure reproduce on independently written code.</p>
+<p>The replication holds: at d = 3, n = {rep_n:,} ({rep_k} seeds each) the greedy lands at
+AR {rep_dga:.4f} against the critique's published &asymp;0.95, and PI-GNN at {rep_gnn:.4f} against
+their &asymp;0.92. Both sides of their figure reproduce on independently written code.</p>
 </div>
-{"".join(['<figure>' + chart_quality() + '<figcaption>Approximation ratio by method at the largest size measured for each degree. The dashed line is the 1RSB replica-theory optimum &mdash; what a very good algorithm should approach.</figcaption></figure>'])}
+{"".join(['<figure>' + chart_quality() + '<figcaption>Approximation ratio by method at the largest size where PI-GNN has its full seed set (n on each row; the single n = 10<sup>5</sup> PI-GNN run is not plotted). The dashed line is the 1RSB replica-theory optimum &mdash; what a very good algorithm should approach.</figcaption></figure>'])}
 </section>
 
 <section>
 <div class="col">
-  <div class="sechead"><span class="secnum">CONTROL</span><h2>The measurement nobody ran</h2></div>
+  <div class="sechead"><span class="secnum">CONTROL</span><h2>The measurement nobody in the exchange ran</h2></div>
   <p>None of the five documents in the exchange &mdash; the original paper, two Comments and
   two Replies &mdash; separates what the <em>network</em> contributes from what the
   <em>post-processing</em> contributes. Both are needed to produce a reported score, and only
@@ -724,19 +873,21 @@ figure reproduce on independently written code.</p>
   &ldquo;PI-GNN&rdquo; is produced entirely by a first-fit greedy pass over the node order.</div>
   <p>This is the sharper form of the comparison, and it forecloses the obvious objection.
   A reader might suspect the repair-and-maximalize step flatters the network; the
-  decomposition shows it contributes 0.3&ndash;0.5% where the network is working, so the
+  decomposition shows it contributes {dec_lo:.1f}&ndash;{dec_hi:.1f}% where the network is working, so the
   measured gap to greedy is the network&rsquo;s own.</p>
   <p>A second control puts an all-ones bitstring &mdash; every node selected, carrying no
   information about the instance &mdash; through that same pipeline. It reaches AR
-  {nul3:.4f} at d = 3 against the trained network&rsquo;s {gnn3:.4f}, and at d = 20 it wins
-  outright ({n20:.5f} against {g20:.5f}). One caveat stated plainly: on an all-ones input
+  {rep_nul:.4f} at d = 3, n = {rep_n:,} against the trained network&rsquo;s {rep_gnn:.4f}, and at
+  d = 20, n = {d20n:,} it wins outright ({n20:.5f} against {g20:.5f}). One caveat stated plainly: on an all-ones input
   every node has the same conflict degree, so the repair pass reduces to iterated
   maximum-degree deletion &mdash; a real heuristic reading the graph. The <em>bitstring</em>
   carries no information; the <em>pipeline</em> does. That is why the decomposition above,
   not this control, is the primary evidence.</p>
-  <p>A trained network scoring below an information-free input is not a hyperparameter
-  problem: the next section exhausts a pre-registered tuning budget without moving it, and
-  the section after that gives the mechanism.</p>
+  <p>A trained network scoring below the all-ones null control is not a hyperparameter
+  problem: the next section gives the mechanism, and the one after it tests a pre-registered
+  tuning budget, a post-hoc round, and the GraphSAGE + P = 10 configuration the Reply describes
+  (as implemented here). At d = 20 none of them returns a non-empty raw output
+  ({tune_nz20 + ph_nz20 + rd_nz20} of {tune_n20 + ph_n20 + rd_n20} runs).</p>
 </div>
 </section>
 
@@ -754,18 +905,18 @@ figure reproduce on independently written code.</p>
   diagonal to <code>&minus;&Sigma;p&#7522;</code> removes the critical point, and d = 20
   still returns nothing.</p>
   <p>The real mechanism is visible when you compare the final training loss against the exact
-  <em>uniform</em> optimum of the relaxed objective &mdash; the value a network that learned
-  nothing at all would reach:</p>
+  <em>uniform</em> optimum of the modified, linear-diagonal objective (a post-hoc change, not
+  the published loss) &mdash; the value a network that learned nothing at all would reach:</p>
 </div>
 <div class="scroll"><table class="data">
-<thead><tr><th>arm</th><th>d</th><th class="num">uniform p*</th><th class="num">predicted L* (mean field)</th>
+<thead><tr><th>arm</th><th>d</th><th class="num">uniform p*</th><th class="num">closed-form L* (mean field)</th>
 <th class="num">observed final loss</th><th>outcome</th></tr></thead>
 <tbody>{mean_field_rows()}</tbody></table></div>
 <div class="col">
-  <div class="kicker">At d = 20 the predicted mean-field loss is &minus;12.500 and the
-  measurement is &minus;12.499. Measured directly, the output hovers at the uniform value
-  p* = 0.025 with {pstat_scatter} scatter and never comes within a factor of seven of the
-  0.5 threshold. The network is trapped at the mean-field saddle &mdash; fluctuations form,
+  <div class="kicker">Under the modified objective at d = 20, the closed-form mean-field loss
+  is &minus;12.500 and the measurement is &minus;12.499. Measured directly, the output hovers
+  near the uniform value p* = 0.025 with {pstat_scatter} scatter and stays more than
+  {pstat_gap}&times; below the 0.5 threshold. The network is trapped at the mean-field saddle &mdash; fluctuations form,
   but symmetry never breaks.</div>
   <p>A caution this page&rsquo;s first draft got wrong: matching L* does not by itself prove
   the configuration is uniform. The loss is second-order blind to zero-mean scatter around
@@ -777,23 +928,26 @@ figure reproduce on independently written code.</p>
   <p>For the published quadratic diagonal, that uniform solution happens to be p = 0. So
   &ldquo;collapses to the empty set&rdquo; and &ldquo;stuck at the mean field&rdquo; are the same
   event &mdash; the formulation simply makes the symmetric solution <em>be</em> nothing, and the
-  fixed 0.5 threshold then reports it as nothing. This also explains why every rescue attempt
-  failed: learning rate, embedding width and patience do not cause symmetry breaking.</p>
+  fixed 0.5 threshold then reports it as nothing. This also explains why the rescue attempts
+  tried here failed: learning rate, patience and a larger embedding (256) do not cause symmetry
+  breaking. A smaller one &mdash; the paper&rsquo;s int(&#8731;n) = 10 at n = 1000 &mdash; is untested (D38).</p>
 </div>
-<figure>{chart_escape()}<figcaption>Fraction of runs producing a non-empty set, n = 1000,
-published configuration; bars are Wilson 95% intervals, and the annotation under each point
-is escapes/runs. Pooled across every degree d &ge; 8 the result is
+<figure>{chart_escape()}<figcaption>Fraction of runs whose raw network output is non-empty,
+n = 1000, the released implementation&rsquo;s configuration ({esc_runs} runs, one per degree
+and seed); bars are Wilson 95% intervals, and the annotation under each point is
+escapes/runs. Pooled across every degree d &ge; 8 the result is
 <strong>{pooled_hi}</strong> &mdash; no single degree row carries that claim on its own, and
-the pooled interval does. The transition sits <em>below</em> the clustering transition at
+the pooled interval does. Whether this ceiling holds under the paper&rsquo;s smaller
+<code>int(cbrt(n))</code> embedding at n = 1000 is untested. The transition sits <em>below</em> the clustering transition at
 d &gt; 16 that the critique proposed as the genuinely hard regime, so the method stops working
 well before the problem becomes hard.</figcaption></figure>
 </section>
 
 <section>
 <div class="col">
-  <div class="sechead"><span class="secnum">DEFENCE</span><h2>Testing the defence the authors actually published</h2></div>
+  <div class="sechead" id="defence"><span class="secnum">DEFENCE</span><h2>Testing the defence the authors actually published</h2></div>
   <p>A tuning budget was fixed in writing <em>before</em> any sweep ran &mdash; four learning
-  rates &times; two penalty values, three seeds, at every degree &mdash; followed by a
+  rates &times; two penalty values &times; three seeds, at d = 3, 5 and 20 &mdash; followed by a
   separately-labelled post-hoc round with a bigger embedding, longer patience and the
   repaired objective.</p>
   <p><strong>That budget was aimed at the wrong target, and this page previously said
@@ -803,8 +957,8 @@ well before the problem becomes hard.</figcaption></figure>
   <em>&ldquo;by simply setting P = 10 we find even further consistent improvements.
   Specifically, for d = 3 at P = 10 GraphSAGE achieves approximation ratios of AR ~ 0.947,
   on par with the DGA-based results&hellip;&rdquo;</em> &mdash; a different architecture and a
-  penalty five times larger than the top of the pre-registered grid, which stopped at
-  P = 3 and never implemented GraphSAGE. The claim that the objection had been
+  penalty five times the published one (P = 10 against 2), well above the pre-registered grid,
+  which stopped at P = 3 and never implemented GraphSAGE. The claim that the objection had been
   &ldquo;answered on its own terms&rdquo; is withdrawn.</p>
 </div>
 <div class="scroll"><table class="data">
@@ -813,32 +967,44 @@ well before the problem becomes hard.</figcaption></figure>
 <th class="num">null control</th><th class="num">non-empty runs</th></tr></thead>
 <tbody>{tuning_table()}</tbody></table></div>
 <div class="col">
-  <p>The pre-registered grid buys under half a percentage point, and the post-hoc repaired
-  objective about one &mdash; neither approaches the greedy. (The d = 20 column reports
-  densities, as no published bound is adopted there.) At d = 20 every one of the
-  {tune_n20} pre-registered runs and every one of the {ph_n20} post-hoc runs returned the
-  empty set: {tune_nz20 + ph_nz20} non-empty results out of {tune_n20 + ph_n20}.</p>
+  <p>On the same seeds 0&ndash;2 (every column above), the pre-registered grid buys at most
+  {tune_gain:.1f} percentage points of AR, and the post-hoc round at most {post_gain:.1f}
+  &mdash; its best arms are the modified objective, a change to the loss rather than a tuned
+  setting &mdash; and neither approaches the greedy. (The d = 20 column reports densities, as
+  no published bound is adopted there.) At d = 20 every one of the {tune_n20} pre-registered
+  runs and every one of the {ph_n20} post-hoc runs had an empty raw output:
+  {tune_nz20 + ph_nz20} non-empty results out of {tune_n20 + ph_n20}.</p>
   <h3>The Reply&rsquo;s own configuration, run as described</h3>
-  <p>GraphSAGE with a mean aggregator was implemented and crossed with the penalty, giving
-  the four arms below at n = 1000, three seeds each.</p>
+  <p>GraphSAGE with a mean aggregator was implemented here (the Reply gives no code for it)
+  and crossed with the penalty, giving the four arms below at n = 1000, seeds 0&ndash;2, with
+  DGA on the same seeds.</p>
 </div>
 <div class="scroll"><table class="data">
 <thead><tr><th>configuration</th><th class="num">AR / density</th>
 <th class="num">non-empty</th><th class="num">mean raw output</th></tr></thead>
 <tbody>{reply_rows()}</tbody></table></div>
 <div class="col">
-  <div class="kicker">The defence does not reach the high-degree failure at all: every one
-  of the four configurations &mdash; including GraphSAGE with P = 10, exactly as the Reply
-  specifies &mdash; returns the empty set in every run at d = 20.</div>
-  <p>At d = 3, P = 10 moves the GCN slightly in the direction the Reply claims (0.9223 to
-  0.9289) and still falls short of greedy&rsquo;s 0.9500. At d = 5 it makes matters
-  markedly worse, which the Reply does not mention.</p>
+  <div class="kicker">The defence does not reach the high-degree failure at all: in every one
+  of the {rd_arms} configurations &mdash; including GraphSAGE with P = 10, as the Reply
+  specifies it &mdash; the raw output is empty at d = 20, {rd_n20 - rd_nz20} of {rd_n20} runs.</div>
+  <p>At d = 3, P = 10 moves the GCN slightly in the direction the Reply claims ({rd_g2_3:.4f} to
+  {rd_g10_3:.4f}) and still falls short of greedy&rsquo;s {rd_dga3:.4f} on the same seeds. At
+  d = 5 it makes matters markedly worse ({rd_g2_5:.4f} to {rd_g10_5:.4f}, with a non-empty raw
+  output in only {rd_g10_5nz} runs), which the Reply does not mention. These arms were run at
+  d = 3, 5 and 20 only.</p>
   <p><strong>One result here is a failure to reproduce, and is reported as nothing more.</strong>
   The Reply states GraphSAGE at P = 10 reaches AR ~ 0.947 for d = 3. This implementation
-  reaches 0.8777 &mdash; below its own GCN. The likeliest explanation is that this
+  reaches {rd_s10_3:.4f} &mdash; below its own GCN. The likeliest explanation is that this
   GraphSAGE is not equivalent to theirs: the Reply gives no architecture detail and no
   code for it. That is a gap in what can be checked from the published record, not
   evidence against their number.</p>
+  <p>The Reply also answers the high-degree benchmark on relevance rather than capability:
+  it calls the d &gt; 16 instances &ldquo;an interesting academic exercise&rdquo; but is
+  &ldquo;not convinced about its practical usefulness&rdquo;, because real problems are not
+  random regular graphs. That is a different objection from the one measured here. This page
+  concerns random <em>d</em>-regular graphs only, where the ceiling sits at d &asymp; 7 (raw output empty in every run from d = 8),
+  below the regime the Reply calls academic; it says nothing about structured real-world
+  graphs.</p>
 </div>
 </section>
 
@@ -854,7 +1020,8 @@ well before the problem becomes hard.</figcaption></figure>
 </div>
 <figure>{chart_time()}<figcaption>Wall clock at d = 3, Apple M1 Pro. Graph loading is excluded
 for both methods; data-structure construction is included for both. The GNN figure covers
-build, training and post-processing.</figcaption></figure>
+build, training and post-processing &mdash; this study&rsquo;s own repair pass, not the updated
+post-processing the Reply reports (see Claim B).</figcaption></figure>
 </section>
 
 <section>
@@ -888,28 +1055,44 @@ as lower bounds, not optima.</p></div>
   <p>Stated plainly, because a verdict that cannot be attacked is not worth much:</p>
   <ul>
     <li><strong>The port.</strong> The original code is DGL 0.5.3 / torch 1.7.1 and will not
-    run on current hardware, so I ported it to plain PyTorch. The repository&rsquo;s test proves the
-    <em>forward math</em> equivalent to the reference &mdash; the loss to machine precision against
-    the true asymmetric Q, the convolution to float32 epsilon &mdash; and an adversarial audit
-    confirmed it kills every natural mutation. The training loop is outside that proof: its
-    fidelity rests on line-by-line replication of the reference&rsquo;s bookkeeping and on fresh
-    reruns reproducing the recorded numbers digit-for-digit. One reporting deviation exists and
+    run on current hardware, so I ported it to plain PyTorch. The repository&rsquo;s test checks the
+    port&rsquo;s <em>forward math</em> against the reference&rsquo;s, re-derived inline &mdash; the loss
+    to machine precision against the true asymmetric Q, the convolution to float32 epsilon &mdash;
+    and an adversarial audit found it kills the natural mutations of that math except a
+    row-normalisation mutant, because its normalisation check is vacuous on <em>d</em>-regular graphs (D26), and the GraphSAGE layer is untested, because no
+    reference implementation of it exists. The training loop is outside that proof: its
+    fidelity rests on line-by-line replication of the reference&rsquo;s bookkeeping and on six fresh
+    reruns that matched the recorded results (D26); training is not bit-deterministic, so
+    re-executing a seeded cell can shift its final loss and epoch count slightly (D38). One reporting deviation exists and
     favours the network: the port keeps the larger of the best and final bitstrings, where the
     reference keeps best only.</li>
     <li><strong>The threshold&rsquo;s location is measured, not derived.</strong> The mean-field
     analysis says where a non-breaking network lands; it does not say why symmetry breaking fails
     only above d &asymp; 6&ndash;7 &mdash; the uniform point is a strict saddle at every degree.</li>
     <li><strong>Charity where it counts.</strong> Every difference from the reference favours
-    the network: a sparse loss it does not have, a repair-and-maximalize step it does not
-    perform, and best-of-two-devices timing. The greedy gets none of that.</li>
-    <li><strong>The mean-field result is a prediction, not a fit.</strong> &minus;12.500 was
-    computed in closed form before being compared to the measurement. That is the single
-    easiest claim here to falsify, and the easiest to check.</li>
+    the network: a sparse loss it does not have, and a repair-and-maximalize step it does not
+    perform. The greedy gets none of that. One protocol choice cuts slightly the other way: in the
+    device benchmark at n = 10<sup>5</sup> the GPU (MPS) was 7% faster than the CPU at d = 3 and 1%
+    slower at d = 5, and every GNN run used the CPU (D14); the check was never repeated at
+    n = 10<sup>6</sup>, an unexecuted protocol step.</li>
+    <li><strong>The mean-field result is a closed form, checked against measurement, not a
+    fit.</strong> &minus;12.500 is L* = &minus;n/(2Pd) under the modified objective, derived after
+    that arm had run (D17) and compared with the measured &minus;12.499. Nothing in it is fitted
+    to the data, which makes it the easiest claim here to check.</li>
     <li><strong>Cells deliberately not run.</strong> PI-GNN at d = 5 and d = 20 for
     n = 10<sup>5</sup>, and at d = 5 for n = 10<sup>6</sup>, were cut on wall-clock grounds after
     the smaller sizes had already settled those cases &mdash; 2.4 hours of machine time for results
     predictable to three digits, or for a collapse already 10/10 consistent with a closed-form
     explanation. Their baselines were measured. Saying so beats leaving the gap implicit.</li>
+    <li><strong>Prior art.</strong> Much of this is anticipated. The null-control idea is
+    B&ouml;ther et al., ICLR 2022 (<a href="https://arxiv.org/abs/2201.10494">arXiv:2201.10494</a>),
+    for a different method; both failure modes are named by Ichikawa, NeurIPS 2024
+    (<a href="https://arxiv.org/abs/2309.16965">arXiv:2309.16965</a>); the density transition is
+    Krutsk&yacute; et al., ECAI 2025 (<a href="https://arxiv.org/abs/2507.13703">arXiv:2507.13703</a>).
+    Their MIS tables put the baseline at zero at d = 10, as here ({ESC[10][0]}/{ESC[10][1]} non-empty);
+    an earlier version of this repository claimed a disagreement at d = 10 by comparing with their MaxCut result,
+    and that claim is withdrawn (D38). What this study adds on that axis is resolution: its degree
+    grid places the MIS transition at d &asymp; 6&ndash;7, between their grid points 5 and 10.</li>
     <li><strong>What I did not test.</strong> MaxCut &mdash; Boettcher's concurrent critique
     targets that, and this study is MIS only. Nor does any of this show that graph neural
     networks cannot do combinatorial optimisation. It shows that <em>this</em> relaxation,
@@ -921,19 +1104,32 @@ as lower bounds, not optima.</p></div>
 <section>
 <div class="col">
   <div class="sechead"><span class="secnum">METHOD</span><h2>Reproduce it</h2></div>
-  <p>{total_runs:,} measured runs on one Apple M1 Pro (10 core, 32 GB). Greedy baselines are
+  <p>{n_records:,} measurement records on one Apple M1 Pro (10 core, 32 GB). Greedy baselines are
   C with a bucket queue, so the timing comparison is not distorted by a slow baseline.
   Instances are uniform random <em>d</em>-regular graphs, verified simple and exactly regular
   at generation. Seeds control the graph, the network initialisation and the tie-break
   together.</p>
-<pre><code>python code/test_port.py        # equivalence proof, run this first
-python code/runner.py --out results/phase1.jsonl \\
-       --d 3 5 20 --n 1000 10000 --seeds 0 1 2 3 4
-python code/collapse_sweep.py   # the operating ceiling in d
-python code/sweep_tuned.py --out results/tuning.jsonl --d 3 5 20 --n 1000 --seeds 0 1 2
-python code/posthoc_d20.py      # escape attempts, incl. the repaired objective
-python code/verify_meanfield.py # the -12.500 prediction
-python code/analyze.py</code></pre>
+<pre><code># Python 3.12
+pip install -r requirements.txt
+cc -O3 -march=native -o code/greedy code/greedy.c     # drop -march=native if your compiler rejects it
+cc -O3 -march=native -o code/repair code/repair.c
+python code/test_port.py            # run first &mdash; forward-math port-equivalence check; needs nothing else
+python code/analyze.py              # summary tables from the committed results
+python code/build_report.py &amp;&amp; python code/make_site.py      # regenerate report.html and site/
+python code/fetch_refs.py           # optional: the papers + the reference implementation into refs/
+# To re-measure rather than re-read, write to a NEW file &mdash; drivers skip cells already in --out:
+python code/runner.py --out results/rerun_phase1.jsonl --d 3 5 20 --n 1000 10000 --seeds 0 1 2 3 4
+# collapse_sweep.py, escape_prob.py, escape_d10plus.py and reply_defence.py take no --out: each
+# appends to a fixed file in results/ and skips cells already there, so move that file aside first.
+# mv -n never overwrites an earlier move-aside; the published files are tracked by git, so
+# `git checkout -- results/` restores them.
+mkdir -p results.published
+mv -n results/collapse.jsonl results/escape.jsonl results.published/
+python code/collapse_sweep.py &amp;&amp; python code/escape_prob.py &amp;&amp; python code/escape_d10plus.py   # escape table: 121 of its 127 runs (the other 6 are phase-1 runs, re-measured by runner.py above)
+mv -n results/reply_defence.jsonl results.published/ &amp;&amp; python code/reply_defence.py             # the Reply&rsquo;s defence, GraphSAGE + P=10 (D37)</code></pre>
+  <p>Code, the raw <code>results/*.jsonl</code> and the decision log are at
+  <a href="https://github.com/ryanonline1234/gnn-vs-greedy">github.com/ryanonline1234/gnn-vs-greedy</a>; its README carries the same
+  commands.</p>
 </div>
 </section>
 
@@ -941,10 +1137,17 @@ python code/analyze.py</code></pre>
   <p class="meta">
   Schuetz, Brubaker &amp; Katzgraber, <em>Nat Mach Intell</em> <strong>4</strong>, 367 (2022) &middot; arXiv:2107.01188<br>
   Angelini &amp; Ricci-Tersenghi, <em>Nat Mach Intell</em> <strong>5</strong>, 29 (2023) &middot; arXiv:2206.13211<br>
-  Boettcher, <em>Nat Mach Intell</em> <strong>5</strong>, 24 (2023) &middot; and the two Replies<br>
+  Boettcher, <em>Nat Mach Intell</em> <strong>5</strong>, 24 (2023) &middot; Replies: Schuetz, Brubaker &amp; Katzgraber, arXiv:2302.03602, arXiv:2303.12096<br>
+  Prior art: B&ouml;ther et al., ICLR 2022, arXiv:2201.10494 &middot; Ichikawa, NeurIPS 2024,
+  arXiv:2309.16965 &middot; Krutsk&yacute; et al., ECAI 2025, arXiv:2507.13703<br>
   Bounds: McKay, <em>Ars Combinatoria</em> <strong>23</strong>, 179 (1987) &middot;
   Barbier, Krzakala, Zdeborov&aacute; &amp; Zhang, <em>J. Phys. Conf. Ser.</em> <strong>473</strong>, 012021 (2013)
   </p>
+  <p class="meta">Provenance: every file in <code>code/</code> was written by Claude (Anthropic)
+  at the author&rsquo;s direction, and the prose of this page is AI-written; the measurements are
+  the author&rsquo;s own, produced by running that code on his machine. Record:
+  <a href="https://github.com/ryanonline1234/gnn-vs-greedy/blob/main/notebook/AI-USE-LOG.md">notebook/AI-USE-LOG.md</a> &middot;
+  repository: <a href="https://github.com/ryanonline1234/gnn-vs-greedy">github.com/ryanonline1234/gnn-vs-greedy</a></p>
 </footer>
 </div>
 <script>
@@ -989,7 +1192,7 @@ python code/analyze.py</code></pre>
 </script>"""
     out = os.path.join(ROOT, "report.html")
     open(out, "w").write(H)
-    print(f"wrote {out}  ({len(H):,} bytes, {total_runs:,} runs summarised)")
+    print(f"wrote {out}  ({len(H):,} bytes, {n_records:,} measurement records)")
 
 if __name__ == "__main__":
     build()

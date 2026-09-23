@@ -7,8 +7,17 @@ For a uniform assignment p_i = p on a d-regular graph with n nodes (m = nd/2 edg
         -> for Pd/2 > 1 this is minimised at p* = 0 with L* = 0
   linear diagonal (MODIFIED):      L(p) = -n p   + P (nd/2) p^2
         -> dL/dp = -n + P n d p = 0  ->  p* = 1/(P d),  L* = -n / (2 P d)
-A network that has learned nothing beyond the mean field lands exactly on L*.
-A network that has symmetry-broken lands far below it.
+The comparison below is run on the MODIFIED, post-hoc objective only (linear diagonal, arms
+modified_linear and modified_linear_lr1e-3 in results/posthoc.jsonl, d = 3, 5, 20, n = 1000,
+P = 2): there the empty set is no longer a critical point, so L* = -n/(2Pd) is non-trivial
+(-12.500 at d = 20). Under the PUBLISHED objective (quadratic diagonal) the uniform optimum is
+p* = 0, L* = 0, and being trapped there shows up as an empty raw output instead.
+
+A network trapped at the uniform mean-field saddle lands at L* to within its fluctuations.
+The loss cannot certify uniformity: it is second-order blind to zero-mean scatter, and small
+non-uniformity can take it slightly below L* (4 of 6 d=20 seeds do; D27/D29). See
+code/capture_pstats.py for the direct p-vector measurement. A network that has
+symmetry-broken lands far below L*. Closed form, checked against measurement (D17, D27).
 """
 import json, numpy as np
 

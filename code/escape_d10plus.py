@@ -6,6 +6,10 @@ with non-collapsed behaviour for d <= 10. This study measures collapse from d >=
 in the published configuration, with only 3 seeds at d >= 10. That is a direct quantitative
 disagreement with a peer-reviewed result at d=10, and 3 seeds cannot carry it. Same published
 config, same generator, 10 seeds.
+
+D38: the premise above is wrong. Krutsky et al.'s non-collapsed d=10 result is for MaxCut;
+their MIS tables (Tables 2, 3, 11) show the baseline collapsed at d=10, consistent with this
+sweep. The data this script produced stand; the "disagreement" does not.
 """
 import json, os
 import gen_graphs, pignn

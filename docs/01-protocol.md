@@ -6,7 +6,7 @@
 | Schuetz, Brubaker & Katzgraber, *Nat Mach Intell* **4**, 367 (2022) | PI-GNN "performs on par or outperforms existing solvers, with the ability to scale beyond the state of the art to problems with millions of variables." |
 | Angelini & Ricci-Tersenghi, *Nat Mach Intell* **5**, 29 (2023) | A degree-based greedy finds "much better quality" solutions, "faster by a factor of 10^4" at n=10^6. |
 | Boettcher, *Nat Mach Intell* **5**, 24 (2023) | Concurrent critique on MaxCut. |
-| Two formal Replies | Concede nothing; the central defense is that the network was not tuned. |
+| Two formal Replies | Concede nothing; the central defense is that the network was not tuned. *[Corrected 2026-09-22 per D36: this characterisation was wrong. The Reply to Angelini & Ricci-Tersenghi (arXiv:2302.03602) proposes two specific changes, GraphSAGE instead of GCN and penalty P = 10 instead of P = 2, reporting AR ≈ 0.947 at d = 3; the pre-registered D11 grid was built against the assumed "untuned" defence and tested neither. D37 tests the actual defence. The Reply to Boettcher is arXiv:2303.12096.]* |
 
 ## What is measured
 The validity of a published claim against an exact objective. Not model performance.
@@ -20,17 +20,21 @@ Uniform random d-regular graphs (igraph `K_Regular`), verified simple and exactl
 d-regular at generation. d in {3, 5, 20} for the main sweep; d in {3,5,7,10,12,14,16,18,20,25}
 for the collapse sweep. n in {10^3, 10^4, 10^5, 10^6}. Seeds control graph, network init,
 and the random-greedy tie-break together.
+*[Added 2026-09-22: the later escape sweeps (D16, D35) extended the n = 1000 degree range to
+d = 4, 6–13 and 15 at 10 seeds each.]*
 
 ## Methods
 | id | what |
 |---|---|
 | `dga` | degree-based greedy — the critique's champion; C, bucket queue, near-linear |
 | `ga` | random greedy (Karp–Sipser style) |
-| `pignn_pub` | PI-GNN at the exact published configuration |
-| `pignn_tuned` | PI-GNN, pre-registered tuning budget (D11) |
+| `pignn_pub` | PI-GNN at the exact published configuration *[2026-09-22, D38: this is the authors' released example implementation's configuration; it uses d0 = int(√n) at every n and patience 100, where the paper's text gives d0 = int(∛n) below n = 10^5 and patience 10^3]* |
+| `pignn_tuned` | PI-GNN, pre-registered tuning budget (D11); rows stored as `tune_lr{lr}_pen{P}`. *[Per D36 this grid does not test the Reply's actual defence; see the D37 rows below.]* |
 | `null_ones` | all-ones bitstring through the GNN's own post-processing |
 | `null_rand` | fair-coin bitstring through the same |
 | `modified_linear` | PI-GNN with the diagonal changed from −Σp² to −Σp (post-hoc, labelled) |
+| `gcn_P2`, `gcn_P10` | *Added post-hoc (D37).* Published GCN at penalty P = 2 (control) / P = 10 |
+| `sage_P2`, `sage_P10` | *Added post-hoc (D37).* GraphSAGE (our mean-aggregator implementation; the Reply gives no code) at P = 2 / P = 10; `sage_P10` is the Reply's configuration |
 
 ## Metric
 Approximation ratio `AR = (|IS|/n) / rho_UB(d)`, matching the critique so numbers are
@@ -51,7 +55,7 @@ under test*, i.e. different hardware. Nothing here is cross-machine.
 
 ## Reproduce
 ```
-./pyrt/bin/python code/test_port.py                       # port equivalence proof
+./pyrt/bin/python code/test_port.py                       # forward-math port-equivalence check (D26)
 ./pyrt/bin/python code/runner.py --out results/phase1.jsonl \
     --d 3 5 20 --n 1000 10000 --seeds 0 1 2 3 4 --device cpu
 ./pyrt/bin/python code/collapse_sweep.py                  # collapse threshold in d
@@ -60,3 +64,8 @@ under test*, i.e. different hardware. Nothing here is cross-machine.
 ./pyrt/bin/python code/scale_test.py --n 1000000 --d 3    # claim B
 ./pyrt/bin/python code/analyze.py
 ```
+*[Note 2026-09-22 (D38): the sweep drivers skip cells already present in their output file,
+so against the committed `results/` these commands re-measure nothing (`scale_test.py`
+instead appends a duplicate record). The escape sweeps
+(`escape_prob.py`, `escape_d10plus.py`) and the D37 defence (`reply_defence.py`) were added
+later. See README → Reproducing for commands that write to new paths.]*

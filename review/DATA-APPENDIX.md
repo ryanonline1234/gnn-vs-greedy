@@ -1,9 +1,12 @@
 # DATA APPENDIX
 
-Every measured configuration. Mean ± s.e.m. over seeds where more than one seed was run.
+Every measured configuration in `results/`: 534 measurement records across 11 files (collapse 30 · early_trace 3 · escape 100 · exact 30 · phase1 150 · phase2 37 · posthoc 63 · pstats 3 · reply_defence 36 · scale 10 · tuning 72). Some cells were executed by more than one driver (e.g. n=1000, d ∈ {3, 5, 20}, seeds 0–2), so records are not distinct runs; each table states its own de-duplication rule.
+Mean ± s.e.m. over seeds where more than one seed was run.
 Host: Apple M1 Pro, 10 core, 32 GB. Greedy baselines in C (`-O3 -march=native`); PI-GNN in PyTorch 2.13.0 on CPU.
 
 Approximation ratio AR = density / ρ_UB(d), with ρ_UB(3)=0.45537, ρ_UB(5)=0.38443 (McKay 1987). No ρ_UB is adopted for d=20.
+
+`pignn_pub` = PI-GNN at the released implementation's configuration: embedding size d0 = int(√n) at every n, as in the authors' released example notebook. The paper's text sets d0 = int(√n) only for n ≥ 10^5 and d0 = int(∛n) below that, so at n = 1000 and n = 10^4 these runs use d0 = 31 / 100 where the text gives 10 / 21; at n ≥ 10^5 the two agree (D38).
 
 ## Main sweep — quality and time
 
@@ -108,27 +111,54 @@ Approximation ratio AR = density / ρ_UB(d), with ρ_UB(3)=0.45537, ρ_UB(5)=0.3
 | 20 | posthoc_lr1e-3 | 0/3 | 0.0 | 0.13500 ± 0.00058 | 0.100 |
 | 20 | posthoc_patience5000 | 0/3 | 0.0 | 0.13500 ± 0.00058 | 0.009 |
 
-## Escape probability vs degree (n=1000, published config; overlapping (d, seed) cells de-duplicated per D28)
+## The Reply's published defence — {GCN, GraphSAGE} × P ∈ {2, 10} (n=1000, seeds 0–2; D37)
 
-| d | runs | non-empty | p(non-empty) | mean epochs |
-|---|---|---|---|---|
-| 3 | 3 | 3 | 1.00 | 12,087 |
-| 4 | 10 | 10 | 1.00 | 14,151 |
-| 5 | 3 | 3 | 1.00 | 15,568 |
-| 6 | 10 | 9 | 0.90 | 16,840 |
-| 7 | 10 | 2 | 0.20 | 10,221 |
-| 8 | 10 | 0 | 0.00 | 8,002 |
-| 9 | 10 | 0 | 0.00 | 8,178 |
-| 10 | 10 | 0 | 0.00 | 8,309 |
-| 11 | 10 | 0 | 0.00 | 8,438 |
-| 12 | 10 | 0 | 0.00 | 8,592 |
-| 13 | 10 | 0 | 0.00 | 8,692 |
-| 14 | 3 | 0 | 0.00 | 8,626 |
-| 15 | 10 | 0 | 0.00 | 8,908 |
-| 16 | 3 | 0 | 0.00 | 8,819 |
-| 18 | 3 | 0 | 0.00 | 8,991 |
-| 20 | 3 | 0 | 0.00 | 9,155 |
-| 25 | 3 | 0 | 0.00 | 9,500 |
+The GraphSAGE layer is this study's mean-aggregator implementation; the Reply gives no architecture detail and no reference code exists (D37). `dga` rows are phase-1 DGA on the same graphs and seeds, for a like-for-like comparison. non-empty = the network's raw output (raw_size > 0), before post-processing.
+
+| d | arm | runs | non-empty | mean raw size | density | AR | mean final loss |
+|---|---|---|---|---|---|---|---|
+| 3 | gcn_P2 | 3 | 3/3 | 419.0 | 0.42000 ± 0.00100 | 0.9223 | -418.255 |
+| 3 | gcn_P10 | 3 | 3/3 | 418.0 | 0.42300 ± 0.00346 | 0.9289 | -417.933 |
+| 3 | sage_P2 | 3 | 3/3 | 388.0 | 0.38767 ± 0.00203 | 0.8513 | -387.250 |
+| 3 | sage_P10 | 3 | 3/3 | 399.7 | 0.39967 ± 0.00410 | 0.8777 | -399.584 |
+| 3 | dga | 3 | — | — | 0.43167 ± 0.00088 | 0.9479 | — |
+| 5 | gcn_P2 | 3 | 3/3 | 333.3 | 0.33900 ± 0.00153 | 0.8818 | -333.238 |
+| 5 | gcn_P10 | 3 | 1/3 | 104.0 | 0.31033 ± 0.01239 | 0.8073 | -103.877 |
+| 5 | sage_P2 | 3 | 3/3 | 313.0 | 0.31333 ± 0.00376 | 0.8151 | -312.917 |
+| 5 | sage_P10 | 3 | 3/3 | 217.3 | 0.31733 ± 0.01068 | 0.8255 | -217.226 |
+| 5 | dga | 3 | — | — | 0.35167 ± 0.00145 | 0.9148 | — |
+| 20 | gcn_P2 | 3 | 0/3 | 0.0 | 0.13500 ± 0.00058 | — | 0.155 |
+| 20 | gcn_P10 | 3 | 0/3 | 0.0 | 0.13500 ± 0.00058 | — | 0.162 |
+| 20 | sage_P2 | 3 | 0/3 | 0.0 | 0.13500 ± 0.00058 | — | 0.144 |
+| 20 | sage_P10 | 3 | 0/3 | 0.0 | 0.13500 ± 0.00058 | — | 0.154 |
+| 20 | dga | 3 | — | — | 0.16967 ± 0.00120 | — | — |
+
+## Escape probability vs degree (n=1000, released implementation's configuration, d0 = int(√n) = 31)
+
+Sources: collapse.jsonl + escape.jsonl, overlapping (d, seed) cells de-duplicated per D28; phase-1 `pignn_pub` n=1000 runs pooled only where (d, seed) is not already present (D38). non-empty = the network's raw output (raw_size > 0), before post-processing. Not tested: whether the d ≥ 8 ceiling holds under the paper's text setting d0 = int(∛n) = 10 at n = 1000 (D38).
+
+| d | runs | non-empty | p(non-empty) | Wilson 95% CI | mean epochs |
+|---|---|---|---|---|---|
+| 3 | 5 | 5 | 1.00 | [0.57, 1.00] | 12,387 |
+| 4 | 10 | 10 | 1.00 | [0.72, 1.00] | 14,151 |
+| 5 | 5 | 5 | 1.00 | [0.57, 1.00] | 15,694 |
+| 6 | 10 | 9 | 0.90 | [0.60, 0.98] | 16,840 |
+| 7 | 10 | 2 | 0.20 | [0.06, 0.51] | 10,221 |
+| 8 | 10 | 0 | 0.00 | [0.00, 0.28] | 8,002 |
+| 9 | 10 | 0 | 0.00 | [0.00, 0.28] | 8,178 |
+| 10 | 10 | 0 | 0.00 | [0.00, 0.28] | 8,309 |
+| 11 | 10 | 0 | 0.00 | [0.00, 0.28] | 8,438 |
+| 12 | 10 | 0 | 0.00 | [0.00, 0.28] | 8,592 |
+| 13 | 10 | 0 | 0.00 | [0.00, 0.28] | 8,692 |
+| 14 | 3 | 0 | 0.00 | [0.00, 0.56] | 8,626 |
+| 15 | 10 | 0 | 0.00 | [0.00, 0.28] | 8,908 |
+| 16 | 3 | 0 | 0.00 | [0.00, 0.56] | 8,819 |
+| 18 | 3 | 0 | 0.00 | [0.00, 0.56] | 8,991 |
+| 20 | 5 | 0 | 0.00 | [0.00, 0.43] | 9,251 |
+| 25 | 3 | 0 | 0.00 | [0.00, 0.56] | 9,500 |
+| pooled d ≥ 8 | 87 | 0 | 0.00 | [0.000, 0.042] | — |
+
+Total: 127 runs in this table.
 
 ## Exact MIS via HiGHS ILP
 
@@ -165,3 +195,21 @@ All n=10^6 rows are a single instance/seed (seed 0).
 | 0 | -12.4554 | -12.5 | 0.02600 | 0.025 | 0.273 | 0.0570 | 0 |
 | 1 | -12.5242 | -12.5 | 0.02611 | 0.025 | 0.289 | 0.0737 | 0 |
 | 2 | -12.5164 | -12.5 | 0.02612 | 0.025 | 0.276 | 0.0534 | 0 |
+
+## Early-epoch raw-output traces (D34) — instrumented diagnostic re-runs
+
+Instrumented re-runs (code/early_trace.py, code/find_escape_epoch.py) that record the raw thresholded set size during training; they are diagnostics, not additional sweep cells. The n = 10^6 row is the checkpoint trace of the budgeted scale run above (scale.jsonl), not a separate record.
+
+| source | n | d | seed | d0 | epochs traced | raw at first traced epoch | min raw in window (epoch) | raw at last traced epoch | loss at last traced epoch |
+|---|---|---|---|---|---|---|---|---|---|
+| early_trace.jsonl (early_trace) | 1,000 | 3 | 0 | 31 | 60 (max 60) | 823 (epoch 0) | 760 (epoch 57) | 760 | 629.9 |
+| early_trace.jsonl (early_trace) | 10,000 | 3 | 0 | 100 | 60 (max 60) | 2,008 (epoch 0) | 727 (epoch 60 — end of window, still falling) | 727 | 2,472.4 |
+| early_trace.jsonl (escape_epoch) | 10,000 | 3 | 0 | 100 | 3000 (max 3000) | 2,008 (epoch 0) | 8 (epoch 450) | 4,097 | -4,034.3 |
+| scale.jsonl (budgeted checkpoints) | 1,000,000 | 3 | 0 | 1000 | 36 (max 36) | 137,531 (epoch 3) | 220 (epoch 36 — end of window, still falling) | 220 | 81,089.4 |
+
+Full traces (epoch: raw):
+
+- n=1,000, early_trace.jsonl (early_trace): 0: 823, 3: 819, 6: 815, 9: 813, 12: 811, 15: 806, 18: 803, 21: 801, 24: 794, 27: 793, 30: 788, 33: 783, 36: 780, 39: 780, 42: 777, 45: 770, 48: 768, 51: 765, 54: 762, 57: 760, 60: 760
+- n=10,000, early_trace.jsonl (early_trace): 0: 2,008, 3: 1,928, 6: 1,851, 9: 1,764, 12: 1,682, 15: 1,599, 18: 1,530, 21: 1,437, 24: 1,363, 27: 1,290, 30: 1,237, 33: 1,174, 36: 1,122, 39: 1,060, 42: 1,018, 45: 964, 48: 916, 51: 861, 54: 810, 57: 775, 60: 727
+- n=10,000, early_trace.jsonl (escape_epoch): 0: 2,008, 150: 174, 300: 26, 450: 8, 600: 13, 750: 29, 900: 65, 1050: 174, 1200: 408, 1350: 929, 1500: 1,633, 1650: 2,403, 1800: 3,059, 1950: 3,502, 2100: 3,767, 2250: 3,909, 2400: 4,000, 2550: 4,043, 2700: 4,069, 2850: 4,085, 3000: 4,097
+- n=1,000,000, scale.jsonl (budgeted checkpoints): 3: 137,531, 6: 87,765, 9: 53,531, 12: 31,007, 15: 17,433, 18: 9,487, 21: 4,992, 24: 2,651, 27: 1,388, 30: 736, 33: 384, 36: 220

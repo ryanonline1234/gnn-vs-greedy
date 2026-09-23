@@ -1,0 +1,8 @@
+# Python 3.12. Exactly the third-party packages imported by code/*.py (AST scan, including
+# imports inside functions), pinned to the versions this study ran with.
+numpy==2.5.2
+torch==2.13.0
+igraph==1.0.0        # graph generation: keep this pin, the seeded sampler defines every instance
+matplotlib==3.11.1   # code/make_plots.py, code/fig_collapse.py
+highspy==1.15.1      # code/exact_mis.py (exact MIS via HiGHS)
+pypdf==6.16.2        # code/fetch_refs.py (text of the fetched papers; optional)

@@ -1,5 +1,15 @@
-"""Aggregate JSONL results into per-(method,d,n) summaries with mean +/- s.e.m."""
-import json, sys, os, glob
+"""Aggregate JSONL results into per-(method,d,n) summaries with mean +/- s.e.m.
+
+Designed for the main-comparison files written by code/runner.py (results/phase1.jsonl and
+results/phase2.jsonl), which is what it reads when given no arguments. Other results files
+(collapse, escape, tuning, posthoc, reply_defence, ...) use different schemas and are analysed
+by the report builders; any record here that lacks a key this script needs is skipped and
+counted, rather than crashing.
+
+    python code/analyze.py                               # phase1 + phase2 (main tables)
+    python code/analyze.py results/rerun_phase1.jsonl    # a re-measurement you wrote
+"""
+import json, sys, os
 import numpy as np
 from collections import defaultdict
 
@@ -20,6 +30,8 @@ def load(paths):
                 try: recs.append(json.loads(line))
                 except Exception: pass
     return recs
+
+NEED = ("method", "d", "n", "density", "size", "t_total_s")
 
 def agg(recs):
     g = defaultdict(list)
@@ -43,9 +55,17 @@ def agg(recs):
 
 def main(paths):
     recs = load(paths)
+    kept = [r for r in recs if all(k in r for k in NEED)]
+    if len(kept) < len(recs):
+        print(f"(skipped {len(recs) - len(kept)} of {len(recs)} records lacking one of "
+              f"{', '.join(NEED)}: not a main-comparison schema)", file=sys.stderr)
+    recs = kept
     if not recs:
         print("no results yet"); return
     a = agg(recs)
+    print("PI-GNN (as published) = the authors' released implementation's configuration: "
+          "d0 = int(sqrt(n)) and patience 100 at every n; the paper's text gives d0 = int(cbrt(n)) "
+          "below n = 1e5 and patience 1e3 (D38).\n")
     ds = sorted({k[1] for k in a}); ns = sorted({k[2] for k in a})
     for d in ds:
         ub = RHO_UB.get(d)
@@ -83,6 +103,7 @@ def main(paths):
     print()
 
 if __name__ == "__main__":
-    paths = sys.argv[1:] or sorted(glob.glob(os.path.join(
-        os.path.dirname(__file__), "..", "results", "*.jsonl")))
+    paths = sys.argv[1:] or [os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                          "..", "results", f)
+                             for f in ("phase1.jsonl", "phase2.jsonl")]
     main(paths)
