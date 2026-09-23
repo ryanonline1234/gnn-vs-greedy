@@ -7,9 +7,9 @@ Regenerate with `python code/build_manifest.py` (after `python code/fetch_refs.p
 
 | file | bytes | sha256[:16] |
 |---|---|---|
-| `review/REVIEW.md` | 23,989 | `c7e0e0a56ce2863e` |
-| `STATE.md` | 6,786 | `b5a2f8a82700bfb2` |
-| `DECISIONS.md` | 51,813 | `123522cbeaf0d80f` |
+| `review/REVIEW.md` | 24,277 | `22499e397f5eb0bd` |
+| `STATE.md` | 6,851 | `c1df96ac765b22f5` |
+| `DECISIONS.md` | 54,266 | `9c923dacdb4df6d2` |
 
 ## The keystone — verify this before anything else
 
@@ -75,14 +75,15 @@ Regenerate with `python code/build_manifest.py` (after `python code/fetch_refs.p
 | `results/pstats.jsonl` | 1,151 | `21bd34d3dbf2ce10` |
 | `results/early_trace.jsonl` | 4,388 | `1dab0b7445b02817` |
 | `results/reply_defence.jsonl` | 9,715 | `8a731ad20e237c20` |
+| `results/cbrt_d0.jsonl` | 12,703 | `87fa40e277bbddfc` |
 
 ## Findings page (AI-written prose — see the AI use log)
 
 | file | bytes | sha256[:16] |
 |---|---|---|
-| `report.html` | 77,299 | `89b9c977a7d643cb` |
-| `site/index.html` | 77,644 | `fe097c8cd3b1cdd2` |
-| `code/build_report.py` | 71,495 | `4bdb00c1659810e4` |
+| `report.html` | 77,645 | `66f773eb5e020a65` |
+| `site/index.html` | 77,990 | `1afe6b94926d868d` |
+| `code/build_report.py` | 72,691 | `42e3fa91d8e63f3f` |
 | `code/make_site.py` | 1,495 | `db151d78bd3fa2f3` |
 | `code/svgchart.py` | 3,318 | `555766f7ad442591` |
 
@@ -90,16 +91,16 @@ Regenerate with `python code/build_manifest.py` (after `python code/fetch_refs.p
 
 | file | bytes | sha256[:16] |
 |---|---|---|
-| `code/build_review.py` | 31,703 | `710262a18e458f84` |
-| `code/build_appendix.py` | 13,062 | `c705096d6e7c9ffa` |
-| `code/build_manifest.py` | 5,436 | `fcbe172427fa6dd5` |
-| `review/DATA-APPENDIX.md` | 14,345 | `d934dad552baec8a` |
+| `code/build_review.py` | 32,783 | `78ea6430ea591aa8` |
+| `code/build_appendix.py` | 14,181 | `4a7fa459d792dc2d` |
+| `code/build_manifest.py` | 5,487 | `0a72e9ede5f874d3` |
+| `review/DATA-APPENDIX.md` | 15,199 | `f97f3706daaf8e1e` |
 
 ## Reproduction
 
 | file | bytes | sha256[:16] |
 |---|---|---|
-| `README.md` | 11,104 | `3cb0474f2eece647` |
+| `README.md` | 11,301 | `05b4964cb751bce1` |
 | `requirements.txt` | 497 | `08317517612f4d44` |
 | `code/fetch_refs.py` | 4,303 | `e914232f87b0ce0d` |
 
@@ -107,7 +108,7 @@ Regenerate with `python code/build_manifest.py` (after `python code/fetch_refs.p
 
 | file | bytes | sha256[:16] |
 |---|---|---|
-| `notebook/AI-USE-LOG.md` | 8,554 | `5039e1f57a80ecc8` |
+| `notebook/AI-USE-LOG.md` | 8,866 | `665d7a669ef1f831` |
 
 ## Source material — NOT committed (copyrighted); retrieved by code/fetch_refs.py. Hashes identify the exact local versions this study used; refs/critique.txt is text extracted from arXiv:2206.13211.
 
@@ -119,7 +120,7 @@ Regenerate with `python code/build_manifest.py` (after `python code/fetch_refs.p
 
 ## Totals
 
-- **534 measurement records** across 11 files in `results/*.jsonl`: collapse 30, early_trace 3, escape 100, exact 30, phase1 150, phase2 37, posthoc 63, pstats 3, reply_defence 36, scale 10, tuning 72.
+- **559 measurement records** across 12 files in `results/*.jsonl`: cbrt_d0 25, collapse 30, early_trace 3, escape 100, exact 30, phase1 150, phase2 37, posthoc 63, pstats 3, reply_defence 36, scale 10, tuning 72.
 - Of these, 3 (pstats) and 3 (early_trace) are instrumented diagnostic re-runs of cells measured elsewhere, and 9 (d, seed) cells appear in both collapse.jsonl and escape.jsonl (d = 7, 10, 12; re-executions of the same cell, de-duplicated at load per D28/D38).
 - No "distinct measured runs" total is published: D38 retired that convention because the same published-config cell was executed by several drivers, so any single figure depends on an equivalence rule the study never fixed. Per-experiment counts are computed where they are reported.
 - host: Apple M1 Pro, 10 core (8P/2E), 32 GB unified; macOS; torch 2.13.0, CPU

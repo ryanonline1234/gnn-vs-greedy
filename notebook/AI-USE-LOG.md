@@ -111,6 +111,10 @@ At the student's direction ("polish the gnn-vs-greedy repo", then "full fix + D3
   skeptic agent) and applied what it confirmed;
 - drafted `DECISIONS.md` D38 (errata, a withdrawn comparison and a configuration disclosure)
   for the student's review.
+- at the student's direction ("run the experiment"), wrote and committed the D39
+  pre-registration, then ran it on the student's machine with the existing `code/runner.py`
+  (`results/cbrt_d0.jsonl`, 25 records — the only new measurement in this session), and
+  updated the generators and prose to report it.
 
 No experiment was re-run and no file in `results/` was changed. All prose written in this
 session is AI-written and falls under the boundary table above.

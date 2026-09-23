@@ -1,6 +1,6 @@
 # DATA APPENDIX
 
-Every measured configuration in `results/`: 534 measurement records across 11 files (collapse 30 · early_trace 3 · escape 100 · exact 30 · phase1 150 · phase2 37 · posthoc 63 · pstats 3 · reply_defence 36 · scale 10 · tuning 72). Some cells were executed by more than one driver (e.g. n=1000, d ∈ {3, 5, 20}, seeds 0–2), so records are not distinct runs; each table states its own de-duplication rule.
+Measured configurations from `collapse.jsonl`, `early_trace.jsonl`, `escape.jsonl`, `exact.jsonl`, `phase1.jsonl`, `phase2.jsonl`, `posthoc.jsonl`, `pstats.jsonl`, `reply_defence.jsonl`, `scale.jsonl`, `tuning.jsonl` (NOT tabulated here: `cbrt_d0.jsonl`): 559 measurement records across 12 files (cbrt_d0 25 · collapse 30 · early_trace 3 · escape 100 · exact 30 · phase1 150 · phase2 37 · posthoc 63 · pstats 3 · reply_defence 36 · scale 10 · tuning 72). Some cells were executed by more than one driver (e.g. n=1000, d ∈ {3, 5, 20}, seeds 0–2), so records are not distinct runs; each table states its own de-duplication rule.
 Mean ± s.e.m. over seeds where more than one seed was run.
 Host: Apple M1 Pro, 10 core, 32 GB. Greedy baselines in C (`-O3 -march=native`); PI-GNN in PyTorch 2.13.0 on CPU.
 
@@ -135,7 +135,7 @@ The GraphSAGE layer is this study's mean-aggregator implementation; the Reply gi
 
 ## Escape probability vs degree (n=1000, released implementation's configuration, d0 = int(√n) = 31)
 
-Sources: collapse.jsonl + escape.jsonl, overlapping (d, seed) cells de-duplicated per D28; phase-1 `pignn_pub` n=1000 runs pooled only where (d, seed) is not already present (D38). non-empty = the network's raw output (raw_size > 0), before post-processing. Not tested: whether the d ≥ 8 ceiling holds under the paper's text setting d0 = int(∛n) = 10 at n = 1000 (D38).
+Sources: collapse.jsonl + escape.jsonl, overlapping (d, seed) cells de-duplicated per D28; phase-1 `pignn_pub` n=1000 runs pooled only where (d, seed) is not already present (D38). non-empty = the network's raw output (raw_size > 0), before post-processing. The paper's text setting d0 = int(∛n) = 10 is tabulated separately below (D39).
 
 | d | runs | non-empty | p(non-empty) | Wilson 95% CI | mean epochs |
 |---|---|---|---|---|---|
@@ -159,6 +159,19 @@ Sources: collapse.jsonl + escape.jsonl, overlapping (d, seed) cells de-duplicate
 | pooled d ≥ 8 | 87 | 0 | 0.00 | [0.000, 0.042] | — |
 
 Total: 127 runs in this table.
+
+## Escape at the paper's embedding width (n=1000, d0 = int(∛n) = 10, hidden 5; pre-registered, D39)
+
+Same instances and seeds as the released-configuration runs; patience 100. Source: results/cbrt_d0.jsonl. non-empty = raw_size > 0.
+
+| d | runs | non-empty | Wilson 95% CI | mean AR / density | mean epochs |
+|---|---|---|---|---|---|
+| 3 | 5 | 5 | [0.57, 1.00] | AR 0.9162 | 18,542 |
+| 5 | 5 | 5 | [0.57, 1.00] | AR 0.8959 | 23,974 |
+| 8 | 5 | 0 | [0.00, 0.43] | density 0.2396 | 10,599 |
+| 12 | 5 | 0 | [0.00, 0.43] | density 0.1892 | 11,210 |
+| 20 | 5 | 0 | [0.00, 0.43] | density 0.1354 | 12,238 |
+| pooled d ≥ 8 | 15 | 0 | [0.000, 0.204] | — | — |
 
 ## Exact MIS via HiGHS ILP
 

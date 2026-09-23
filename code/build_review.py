@@ -73,6 +73,16 @@ esc_tbl = "\n".join(["| d | raw non-empty / runs | p | Wilson 95% CI |","|---|--
 ESC_RUNS = sum(k for _, k in ESC.values())
 HI_E = sum(e for d, (e, k) in ESC.items() if d >= 8); HI_K = sum(k for d, (e, k) in ESC.items() if d >= 8)
 HI_LO, HI_HI = wilson(HI_E, HI_K)
+# D39 (pre-registered): the paper's text embedding width d0 = int(cbrt n) = 10 at n = 1000
+_cb = [json.loads(l) for l in open(os.path.join(ROOT, "results", "cbrt_d0.jsonl")) if l.strip()]
+_cbg = defaultdict(lambda: [0, 0])
+for _r in _cb:
+    _cbg[_r["d"]][0] += int(_r["raw_size"] > 0); _cbg[_r["d"]][1] += 1
+CB_HI_E = sum(_cbg[d][0] for d in _cbg if d >= 8); CB_HI_K = sum(_cbg[d][1] for d in _cbg if d >= 8)
+CB_LO_E = sum(_cbg[d][0] for d in _cbg if d < 8); CB_LO_K = sum(_cbg[d][1] for d in _cbg if d < 8)
+CB_WL, CB_WH = wilson(CB_HI_E, CB_HI_K)
+CB_DS = ", ".join(str(d) for d in sorted(_cbg) if d >= 8)
+assert CB_HI_E == 0 and CB_LO_E == CB_LO_K, "D39 prose: ceiling holds at cbrt width; d=3,5 escape"
 
 # tuning
 tn20 = sum(1 for r in tune if r["d"]==20); tz20 = sum(1 for r in tune if r["d"]==20 and r["raw_size"]>0)
@@ -210,7 +220,7 @@ mkdir -p results.published
 mv -n results/collapse.jsonl results/escape.jsonl results.published/
 python code/collapse_sweep.py && python code/escape_prob.py && python code/escape_d10plus.py   # escape table: 121 of its 127 runs (the other 6 are phase-1 runs, re-measured by runner.py above)
 mv -n results/reply_defence.jsonl results.published/ && python code/reply_defence.py             # the Reply's defence, GraphSAGE + P=10 (D37)
-# Open (D38), not yet run: the ceiling under the paper's d0 = int(∛n) at n = 1000
+# D39 (pre-registered): the ceiling under the paper's d0 = int(∛n) at n = 1000 — writes a new file
 python code/runner.py --out results/cbrt_d0.jsonl --methods pignn_pub --tag pignn_cbrt --dim-embedding 10 --n 1000 --d 3 5 8 12 20 --seeds 0 1 2 3 4"""
 
 DOC = f"""# REVIEW PACKAGE — adjudicating PI-GNN vs greedy for Maximum Independent Set
@@ -265,7 +275,7 @@ applied to PI-GNN with a measured floor, and the location of the transition.
 |---|---|---|---|
 | A | on par or outperforms existing solvers | **Refuted** | `results/phase1.jsonl`, `phase2.jsonl` — §3 |
 | B | scales to millions of variables | **Upheld only after a reformulation the released implementation does not contain** | `results/scale.jsonl` — §5 |
-| — | undisclosed operating ceiling in d | **Fails for d ≥ 8** (raw output non-empty in {HI_E}/{HI_K} runs pooled over d ≥ 8, n=1000, in the released implementation's configuration d0 = int(√n); untested under the paper's d0 = int(∛n), D38) | `results/collapse.jsonl`, `escape.jsonl`, `phase1.jsonl` — §4 |
+| — | undisclosed operating ceiling in d | **Fails for d ≥ 8** (raw output non-empty in {HI_E}/{HI_K} runs pooled over d ≥ 8, n=1000, in the released implementation's configuration d0 = int(√n); also {CB_HI_E}/{CB_HI_K} at the paper's d0 = int(∛n) = 10 at d = {CB_DS}, D39) | `results/collapse.jsonl`, `escape.jsonl`, `phase1.jsonl` — §4 |
 | — | the Reply's published defence (GraphSAGE + P=10, arXiv:2302.03602); our earlier "Answered" verdict is **retracted** (D36) | **Tested as described (D37): raw output empty at d=20 in {RD20_K-RD20_E}/{RD20_K} runs across all four arms; no arm reaches DGA at d=3 or d=5; the Reply's GraphSAGE AR ≈{REPLY_AR} at d=3 not reproduced (ours {SAGE10_3:.4f}) — a failure to reproduce, not a refutation** | `results/reply_defence.jsonl`; pre-registered grid `tuning.jsonl`, `posthoc.jsonl` — §4 |
 
 ## 3. Claim A — the head-to-head
@@ -305,8 +315,9 @@ post-processing adds {DECOMP_LO:.1f}–{DECOMP_HI:.1f}%; at d = 20 the entire sc
 plateau claim; the pooled one can. {ESC_RUNS} runs in this table: `collapse.jsonl` + `escape.jsonl`
 de-duplicated by (d, seed) (D28), plus phase-1 released-configuration n=1000 runs only where
 (d, seed) is not already present (D38). "Non-empty" means the network's **raw** output, before
-post-processing. Open (D38): whether this ceiling holds under the paper's text rule
-d0 = int(∛n) at n = 1000 is untested.
+post-processing. At the paper's text rule d0 = int(∛n) = 10 (D39, pre-registered): d = 3 and 5
+escape in {CB_LO_E}/{CB_LO_K} runs and d = {CB_DS} in {CB_HI_E}/{CB_HI_K} (Wilson 95% CI
+[{CB_WL:.3f}, {CB_WH:.3f}]) — the ceiling holds at that width too, at the degrees tested.
 
 ### Why it fails — failure to symmetry-break
 
@@ -425,9 +436,10 @@ whichever device is faster) was never executed at n=1e6 — an unexecuted protoc
    with GraphSAGE + P=10; ours reaches {SAGE10_3:.4f}, below our own GCN. The Reply gives no
    architecture detail or code, so this is a failure to reproduce, not a refutation (D37). If
    our SAGE layer is wrong, every GraphSAGE row in §4 is void; the GCN + P=10 rows still stand.
-3. **The ceiling was measured in the released implementation's configuration only.** At n=1000
-   that is d0 = 31, where the paper's text gives int(∛n) = 10. Whether the d ≥ 8 ceiling holds
-   under ∛n is untested (D38).
+3. **The ceiling at the paper's width rests on {CB_HI_K} runs.** D39 re-ran d = 3, 5, {CB_DS} at the
+   paper's d0 = int(∛n) = 10: {CB_LO_E}/{CB_LO_K} escape at d = 3 and 5, {CB_HI_E}/{CB_HI_K} at d ≥ 8.
+   Degrees 6, 7 and those between the tested ones were not re-run at that width, so the
+   transition's exact location there is not measured; patience stayed at the implementation's 100.
 4. **The mean-field result is the most falsifiable claim.** L*(uniform) = −n/(2Pd) is a closed
    form, checked against measurement — D17 derived it after the arm had run, not before.
    Re-derive it by hand and check it against `results/posthoc.jsonl`. If the algebra is wrong,

@@ -2,7 +2,7 @@
 
 **Goal:** adjudicate the PI-GNN claim (Schuetz et al., NMI 4, 367 (2022)) against the
 Angelini & Ricci-Tersenghi critique (NMI 5, 29 (2023)) by same-machine measurement.
-**Host:** Apple M1 Pro, 10 core, 32 GB. torch 2.13.0, CPU. 534 measurement records in `results/` (11 files; counted in code at
+**Host:** Apple M1 Pro, 10 core, 32 GB. torch 2.13.0, CPU. 559 measurement records in `results/` (12 files; counted in code at
 build time — D38 retired the D31 "distinct measured runs" count).
 **Env:** `pyrt/`, `runlog/` (a repo hook blocks `.venv`, `venv`, `logs/` paths).
 
@@ -14,10 +14,11 @@ build time — D38 retired the D31 "distinct measured runs" count).
 ## the raw fragment renders in quirks mode) -> cd site && vercel deploy --prod --yes
 
 ## Now (2026-09-22)
-Audit fix (113-agent audit) on branch `audit-fixes-2026-09-22`: **not yet pushed or deployed**;
-the live site and public repo still show the pre-audit numbers. Errata are logged in D38
-(escape-pool double count, record count, DGA seed basis, √n-vs-∛n configuration). Open
-experiment from D38: does the d >= 8 ceiling hold under the paper's d0 = int(∛n) at n = 1000?
+Audit fix (113-agent audit + 34-agent verification) merged to main, pushed and deployed
+2026-09-22. Errata are in D38 (escape-pool double count, record count, DGA seed basis, the
+withdrawn Krutsky comparison, √n-vs-∛n configuration). D39, pre-registered before running,
+tested the paper's d0 = int(∛n) = 10 at n = 1000: d = 3, 5 escape 10/10 and d = 8, 12, 20 are
+0/15 (Wilson [0.000, 0.204]) — the ceiling holds at the paper's width too.
 
 ## Verdicts (see DECISIONS.md D1–D38; D24 is a labelled projection)
 - **Claim A (parity) — REFUTED.** DGA wins in every (d, n) cell where both were run, and in
@@ -33,7 +34,7 @@ experiment from D38: does the d >= 8 ceiling hold under the paper's d0 = int(∛
 - **Operating ceiling (a regime the paper never tested, D36):** raw output non-empty in
   0/87 runs pooled over d = 8-25, n = 1000 (Wilson 95% CI [0.000, 0.042]); d=7 escapes 2/10;
   d=3 and d=5 5/5, d=20 0/5 (D38 corrects D33/D35's 8/8 and 0/8). Released-implementation
-  configuration (d0 = int(√n)); untested under the paper's ∛n rule below n=1e5 (D38).
+  configuration (d0 = int(√n)); also 0/15 at d = 8, 12, 20 under the paper's ∛n width (D39).
 - **Reply's defence (D36/D37):** the pre-registered lr × P∈{2,3} grid (0/24 pre-registered,
   0/21 post-hoc raw non-empty at d=20) did NOT test the published defence, so the
   "answered" claim is retracted (D36). The actual defence, GraphSAGE + P=10 (D37), n=1000,
@@ -83,12 +84,12 @@ propagation of D26/D32/D33/D36/D37, and the √n-vs-∛n configuration disclosur
    2026-09-01 stated it (plus 0/90 and "predicted before measurement") — corrections pending.
 3. Prior art (D32) must be cited in any write-up or it will be rejected on novelty.
 4. arXiv endorsement needed before preprinting; candidates + drafts in outreach/.
-5. The ∛n configuration (D38): the paper's text sets d0 = int(∛n) below n = 1e5; this study
-   ran int(√n) (released notebook). Re-run the escape sweep at n = 1000 with d0 = 10 to see
-   whether the d >= 8 ceiling holds there.
+5. DONE (D39): the ceiling holds at the paper's ∛n width at d = 8, 12, 20. Not re-run at that
+   width: d = 6, 7 and the degrees between those tested, so the transition's location under
+   ∛n is unmeasured; patience stayed at 100 (the d = 20 patience-5,000 arm covers that).
 
 ## Next action
-Review the audit-fix branch `audit-fixes-2026-09-22`, then merge, push and redeploy
-(rebuild report + make_site, then vercel deploy --prod --yes from site/); update the GitHub
-repo description (still says 483). Then the ∛n experiment (open item 5; command in D38 item 11). When cleared to publish, `report.html` is ready for the Artifact tool
+Send the two corrections in outreach/correction-drafts-2026-09-22.md (Böther; Angelini &
+Ricci-Tersenghi). Deploy flow for future edits: rebuild report + make_site, then
+`vercel deploy --prod --yes` from site/. When cleared to publish, `report.html` is ready for the Artifact tool
 (title "The PI-GNN Verdict", favicon a single scales emoji).

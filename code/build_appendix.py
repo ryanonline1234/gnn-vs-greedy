@@ -129,8 +129,7 @@ out += ["## Escape probability vs degree (n=1000, released implementation's conf
         "Sources: collapse.jsonl + escape.jsonl, overlapping (d, seed) cells de-duplicated per D28; phase-1 "
         "`pignn_pub` n=1000 runs pooled only where (d, seed) is not already present (D38). "
         "non-empty = the network's raw output (raw_size > 0), before post-processing. "
-        "Not tested: whether the d ≥ 8 ceiling holds under the paper's text setting d0 = int(∛n) = 10 at "
-        "n = 1000 (D38).", "",
+        "The paper's text setting d0 = int(∛n) = 10 is tabulated separately below (D39).", "",
         "| d | runs | non-empty | p(non-empty) | Wilson 95% CI | mean epochs |",
         "|---|---|---|---|---|---|"]
 for d in sorted(_eg):
@@ -142,6 +141,25 @@ if _hi:
     _k = sum(1 for r in _hi if r["raw_size"] > 0); _lo, _up = wilson(_k, len(_hi))
     out.append(f"| pooled d ≥ 8 | {len(_hi)} | {_k} | {_k/len(_hi):.2f} | [{_lo:.3f}, {_up:.3f}] | — |")
 out += ["", f"Total: {len(_esc)} runs in this table.", ""]
+
+# D39 (pre-registered): the same ceiling test at the paper's text embedding width
+_cb = L("cbrt_d0.jsonl")
+if _cb:
+    _cg = defaultdict(list)
+    for r in _cb: _cg[r["d"]].append(r)
+    out += ["## Escape at the paper's embedding width (n=1000, d0 = int(∛n) = 10, hidden 5; pre-registered, D39)", "",
+            "Same instances and seeds as the released-configuration runs; patience 100. Source: "
+            "results/cbrt_d0.jsonl. non-empty = raw_size > 0.", "",
+            "| d | runs | non-empty | Wilson 95% CI | mean AR / density | mean epochs |",
+            "|---|---|---|---|---|---|"]
+    for d in sorted(_cg):
+        v = _cg[d]; k = sum(1 for r in v if r["raw_size"] > 0)
+        dens = np.mean([r["density"] for r in v])
+        val = f"AR {dens/RHO_UB[d]:.4f}" if d in RHO_UB else f"density {dens:.4f}"
+        out.append(f"| {d} | {len(v)} | {k} | {_wfmt(k, len(v))} | {val} | {np.mean([r['epochs_run'] for r in v]):,.0f} |")
+    _h = [r for r in _cb if r["d"] >= 8]; _hk = sum(1 for r in _h if r["raw_size"] > 0)
+    _l, _u = wilson(_hk, len(_h))
+    out += [f"| pooled d ≥ 8 | {len(_h)} | {_hk} | [{_l:.3f}, {_u:.3f}] | — | — |", ""]
 
 block("Exact MIS via HiGHS ILP", L("exact.jsonl"), lambda r: (r["d"], r["n"]),
       [("d", lambda k, v: str(k[0])),

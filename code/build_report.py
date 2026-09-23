@@ -44,6 +44,17 @@ def wilson(k, n, z=1.96):
     h = z * math.sqrt(p*(1-p)/n + z*z/(4*n*n)) / d
     return (max(0.0, c-h), min(1.0, c+h))
 exact = loadf("exact.jsonl"); scale = loadf("scale.jsonl")
+# D39 (pre-registered): the paper's text embedding width d0 = int(cbrt n) = 10 at n = 1000
+cbrt = loadf("cbrt_d0.jsonl")
+CB = defaultdict(lambda: [0, 0])
+for _r in cbrt:
+    CB[_r["d"]][0] += int(_r.get("raw_size", 0) > 0); CB[_r["d"]][1] += 1
+cb_hi_k = sum(CB[d][0] for d in CB if d >= 8); cb_hi_n = sum(CB[d][1] for d in CB if d >= 8)
+cb_lo_k = sum(CB[d][0] for d in CB if d < 8); cb_lo_n = sum(CB[d][1] for d in CB if d < 8)
+cb_wl, cb_wh = wilson(cb_hi_k, cb_hi_n) if cb_hi_n else (0.0, 1.0)
+cb_ds = ", ".join(str(d) for d in sorted(CB) if d >= 8)
+# the prose states these outcomes; refuse to build if the data stop supporting them (D39)
+assert cbrt and cb_hi_k == 0 and cb_lo_k == cb_lo_n, "D39 prose: ceiling holds at cbrt width; d=3,5 escape"
 
 A = defaultdict(list)
 for r in main: A[(r["method"], r["d"], r["n"])].append(r)
@@ -819,8 +830,9 @@ def build():
     <h3>Undisclosed &middot; operating range</h3>
     <div class="stamp">Fails above d &asymp; 7</div>
     <p>Past degree seven the network&rsquo;s raw output is empty in every run (n = 1000, the
-    released implementation&rsquo;s configuration; untested under the paper&rsquo;s smaller
-    embedding at this size). The paper's own experiments sit at degrees three and five.</p>
+    released implementation&rsquo;s configuration; a pre-registered re-run at the paper&rsquo;s
+    smaller embedding finds the same, {cb_hi_k}/{cb_hi_n} at d = {cb_ds}, D39). The paper's own
+    experiments sit at degrees three and five.</p>
   </div>
 </div>
 </section>
@@ -838,7 +850,9 @@ def build():
   authors&rsquo; released example implementation&rsquo;s setting, which uses an embedding of
   <code>int(sqrt(n))</code> at every n and a patience of 100; the paper&rsquo;s text uses
   <code>int(cbrt(n))</code> below n = 10<sup>5</sup> (10 rather than 31 at n = 1000) and a patience
-  of 10<sup>3</sup>. Whether the results below hold under that smaller embedding is untested (D38).</p>
+  of 10<sup>3</sup>. A pre-registered re-run at that smaller embedding (D39) reproduces the
+  ceiling &mdash; {cb_hi_k}/{cb_hi_n} non-empty raw outputs at d = {cb_ds}, while d = 3 and 5 still
+  escape in {cb_lo_k}/{cb_lo_n} runs. Every other result on this page uses the released setting.</p>
 </div>
 <div class="scroll"><table class="data">
 <thead><tr><th>n</th><th>method</th><th class="num">density</th><th class="num">AR</th>
@@ -930,15 +944,17 @@ their &asymp;0.92. Both sides of their figure reproduce on independently written
   event &mdash; the formulation simply makes the symmetric solution <em>be</em> nothing, and the
   fixed 0.5 threshold then reports it as nothing. This also explains why the rescue attempts
   tried here failed: learning rate, patience and a larger embedding (256) do not cause symmetry
-  breaking. A smaller one &mdash; the paper&rsquo;s int(&#8731;n) = 10 at n = 1000 &mdash; is untested (D38).</p>
+  breaking. Neither does a smaller one: at the paper&rsquo;s int(&#8731;n) = 10 the raw output is
+  empty in {cb_hi_n - cb_hi_k}/{cb_hi_n} runs at d = {cb_ds} (D39).</p>
 </div>
 <figure>{chart_escape()}<figcaption>Fraction of runs whose raw network output is non-empty,
 n = 1000, the released implementation&rsquo;s configuration ({esc_runs} runs, one per degree
 and seed); bars are Wilson 95% intervals, and the annotation under each point is
 escapes/runs. Pooled across every degree d &ge; 8 the result is
 <strong>{pooled_hi}</strong> &mdash; no single degree row carries that claim on its own, and
-the pooled interval does. Whether this ceiling holds under the paper&rsquo;s smaller
-<code>int(cbrt(n))</code> embedding at n = 1000 is untested. The transition sits <em>below</em> the clustering transition at
+the pooled interval does. At the paper&rsquo;s smaller <code>int(cbrt(n))</code> = 10 embedding a
+pre-registered re-run finds the same ceiling: {cb_hi_k}/{cb_hi_n} non-empty at d = {cb_ds} (Wilson 95%
+CI [{cb_wl:.3f}, {cb_wh:.3f}]), with {cb_lo_k}/{cb_lo_n} escaping at d = 3 and 5 (D39). The transition sits <em>below</em> the clustering transition at
 d &gt; 16 that the critique proposed as the genuinely hard regime, so the method stops working
 well before the problem becomes hard.</figcaption></figure>
 </section>

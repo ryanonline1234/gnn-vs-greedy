@@ -34,6 +34,7 @@ d = 4, 6–13 and 15 at 10 seeds each.]*
 | `null_rand` | fair-coin bitstring through the same |
 | `modified_linear` | PI-GNN with the diagonal changed from −Σp² to −Σp (post-hoc, labelled) |
 | `gcn_P2`, `gcn_P10` | *Added post-hoc (D37).* Published GCN at penalty P = 2 (control) / P = 10 |
+| `pignn_cbrt` | *Added 2026-09-22 (D39, pre-registered before running).* PI-GNN at the paper's text embedding width d0 = int(∛n) = 10, hidden 5, n = 1000; otherwise the released configuration |
 | `sage_P2`, `sage_P10` | *Added post-hoc (D37).* GraphSAGE (our mean-aggregator implementation; the Reply gives no code) at P = 2 / P = 10; `sage_P10` is the Reply's configuration |
 
 ## Metric

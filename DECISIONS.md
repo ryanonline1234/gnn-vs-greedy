@@ -735,3 +735,15 @@ Reading rule, fixed now:
   ceiling claim is narrowed to the released configuration and the counts are reported.
 - AR at d = 3 and 5 against the √n runs on the same seeds: descriptive only.
 No re-runs, no seed or degree changes, and no other arm before this is reported.
+RESULT, run 2026-09-22 after the pre-registration above was committed (51f1b43), exactly as
+written — 25 runs, 0 failures, results/cbrt_d0.jsonl:
+    d=3   5/5 non-empty [0.57,1.00]   AR 0.9162  (√n width, same seeds: 0.9184)
+    d=5   5/5 non-empty [0.57,1.00]   AR 0.8959  (√n width, same seeds: 0.8844)
+    d=8   0/5   d=12  0/5   d=20  0/5   raw_size 0 in every run
+    POSITIVE CONTROL 10/10 (>= 8/10: informative). PRIMARY 0/15, Wilson 95% CI [0.000, 0.204].
+Per the rule fixed in advance: **the ceiling also holds at the paper's width at the degrees
+tested.** D38 item 11's open question is closed. Scope, stated so it is not over-read: only
+d = 3, 5, 8, 12, 20 were run at the ∛n width, so the transition's location under that width is
+not measured, and patience stayed at 100. The ARs are descriptive (5 seeds); both widths stay
+below DGA at d = 3 and 5. The escape table and every other result remain in the released
+configuration; these 25 records are reported separately, not pooled into it.

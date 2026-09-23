@@ -16,8 +16,9 @@ nothing.
 **Bottom line.** Degree-based greedy (DGA, the Comment's baseline) finds larger independent
 sets than PI-GNN in every cell tested, and in the released implementation's configuration the
 network's raw output is non-empty in **0/87** runs pooled over every degree d ≥ 8 tested
-(n = 1000) — an operating ceiling the paper never probed, not yet tested under the paper's
-own ∛n embedding rule (D38). **This study has also withdrawn two of its own claims:** that its
+(n = 1000) — an operating ceiling the paper never probed. A pre-registered re-run at the
+paper's own ∛n embedding width finds the same ceiling (0/15 at d = 8, 12, 20; D39).
+**This study has also withdrawn two of its own claims:** that its
 tuning sweep answered the authors' defence, which it did not test ([D36](DECISIONS.md)) — the
 defence was then run as the Reply describes it ([D37](DECISIONS.md)) — and a claimed
 disagreement with Krutský et al. that compared against their MaxCut rather than their MIS
@@ -26,7 +27,7 @@ results ([D38](DECISIONS.md), which also lists the numerical errata).
 This repository re-runs both sides: same host, same instances, same seeds. PI-GNN is a port of
 the authors' reference code (D4, D26); DGA is written in C from the Comment's description
 (D8). The Reply's GraphSAGE variant has no released code or architecture detail, so it was
-reconstructed from the Reply's text (D37). **534 measurement records** on an Apple M1 Pro.
+reconstructed from the Reply's text (D37). **559 measurement records** on an Apple M1 Pro.
 
 ## What it finds
 
@@ -43,8 +44,9 @@ reconstructed from the Reply's text (D37). **534 measurement records** on an App
   0.20 at d=7, and is **0/87 pooled across every d≥8 tested** (Wilson 95% CI [0.000, 0.042]),
   n = 1000 — below the d>16 clustering transition proposed as the genuinely hard regime. This
   is the released implementation's configuration (embedding width d0 = int(√n) at every n);
-  the paper's text gives d0 = int(∛n) below n = 10⁵, and whether the ceiling holds under
-  that setting is untested (D38). (It also uses patience 100 where the paper states 10³; a
+  the paper's text gives d0 = int(∛n) below n = 10⁵. A re-run at that width, pre-registered
+  before running (D39), finds the ceiling again: 0/15 non-empty at d = 8, 12, 20 (Wilson 95%
+  CI [0.000, 0.204]), while d = 3 and 5 still escape in 10/10. (It also uses patience 100 where the paper states 10³; a
   patience-5,000 arm is also empty at d=20, D17.)
 - **A closed-form mechanism, checked against measurement.** Under a modified, post-hoc
   objective (linear diagonal, so the empty set is no longer a critical point) the uniform
@@ -122,7 +124,7 @@ mkdir -p results.published
 mv -n results/collapse.jsonl results/escape.jsonl results.published/
 python code/collapse_sweep.py && python code/escape_prob.py && python code/escape_d10plus.py   # escape table: 121 of its 127 runs (the other 6 are phase-1 runs, re-measured by runner.py above)
 mv -n results/reply_defence.jsonl results.published/ && python code/reply_defence.py             # the Reply's defence, GraphSAGE + P=10 (D37)
-# Open (D38), not yet run: the ceiling under the paper's d0 = int(∛n) at n = 1000
+# D39 (pre-registered): the ceiling under the paper's d0 = int(∛n) at n = 1000 — writes a new file
 python code/runner.py --out results/cbrt_d0.jsonl --methods pignn_pub --tag pignn_cbrt --dim-embedding 10 --n 1000 --d 3 5 8 12 20 --seeds 0 1 2 3 4
 ```
 
