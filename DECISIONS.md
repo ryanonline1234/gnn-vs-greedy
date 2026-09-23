@@ -716,3 +716,22 @@ WITHDRAWN — a published-work comparison (found during the fix, after the audit
     (0.95 is the 36-epoch window D34 compares against); at epoch 60 it is 760 (0.92). D34's n=1e4
     trace to 3,000 epochs (minimum 8 at epoch 450) is a separate record (method escape_epoch) in
     results/early_trace.jsonl. The conclusion does not change.
+
+## D39 — The paper's embedding width (∛n) at n = 1000: pre-registered before running
+Written and committed 2026-09-22 BEFORE any run, to settle D38 item 11.
+Run exactly:
+    python code/runner.py --out results/cbrt_d0.jsonl --methods pignn_pub --tag pignn_cbrt \
+        --dim-embedding 10 --n 1000 --d 3 5 8 12 20 --seeds 0 1 2 3 4
+d0 = int(cbrt 1000) = 10, hidden = int(d0/2) = 5 (the paper's d1). Same instances and seeds as the
+released-configuration runs; patience stays 100, so this isolates width. 25 runs.
+Reading rule, fixed now:
+- POSITIVE CONTROL, d = 3 and 5 (10 runs). With √n width these are 5/5 and 5/5 non-empty. If the
+  ∛n raw output is non-empty in >= 8/10, the narrower network works where it should and the
+  ceiling test below is informative. If <= 2/10, the ∛n setting fails at every degree at
+  n = 1000; that is reported, the width comparison is uninformative, and the ceiling claim stays
+  scoped to the released configuration. In between: reported with counts and flagged.
+- PRIMARY, d in {8, 12, 20} (15 runs). 0/15 raw non-empty (Wilson upper bound 0.20) => "the
+  ceiling also holds at the paper's width at the degrees tested". Any non-empty run => the
+  ceiling claim is narrowed to the released configuration and the counts are reported.
+- AR at d = 3 and 5 against the √n runs on the same seeds: descriptive only.
+No re-runs, no seed or degree changes, and no other arm before this is reported.
